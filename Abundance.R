@@ -8,6 +8,9 @@
 library(dplyr)
 library(BRCmap)
 library(tidyr)
+library(gamm4)
+library(ggplot2)
+
 
 
 FIT_public <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\data outputs current versions\\tblEXPORT_PublicFITCount.csv", 
@@ -49,8 +52,59 @@ FIT_public_2018 <- subset(FIT_public, year == "2018")
 
 FIT_public_2018 <- FIT_public_2018[!is.na(FIT_public_2018$site_1km),]
 
+table(FIT_public_2018$country)
+# very few observations for Northern Ireland and the Isle of Man
+# exclude these for now and just fit the model to GB
 
-# GAMM for all insects ----
+FIT_public_2018_GB <- subset(FIT_public_2018, country %in% c("England", "Wales", "Scotland"))
 
+## Data exploration ----
+
+JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = all_insects_total)) +
+  geom_point(color = "goldenrod") +
+  geom_smooth(color = "darkblue") +
+  facet_wrap(~country) +
+  xlab("Julian date") +
+  ylab("All insects abundance") +
+  theme_bw()
+
+abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
+  geom_boxplot(aes(x = wind_speed, y = all_insects_total)) +
+  xlab("Wind speed") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme_bw()
+
+
+abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
+  geom_boxplot(aes(x = flower_new, y = all_insects_total)) +
+  xlab("Flower type") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme_bw()
+
+abund_by_context <- ggplot(data = FIT_public_2018_GB) +
+  geom_boxplot(aes(x = flower_context, y = all_insects_total)) +
+  xlab("Flower context") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
+        panel.background = element_blank())
+
+## GAMM for all insects ----
+
+FIT_public_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country, k = 4) + flower_new +
+                            floral_unit_count + flower_context + wind_speed,
+                          family = poisson, random = ~(1|country/site_1km), 
+                          data = FIT_public_2018_GB)
+
+FIT_public_gamm_1$mer
+summary(FIT_public_gamm_1$gam)
+
+plot(FIT_public_gamm_1$gam, pages = 1)
+
+
+par(mfrow = c(2,2))
+gam.check(FIT_public_gamm_1$gam, type = "deviance")
 
 
