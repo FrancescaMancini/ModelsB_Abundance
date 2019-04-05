@@ -2,7 +2,7 @@
 ## Task 4.2 Models B - total abundance of pollinating insects
 ## Author: Francesca Mancini
 ## Date created: 2019-03-18
-## Date modified: 2019-04-04
+## Date modified: 2019-04-05
 ####################################################################
 
 
@@ -13,7 +13,7 @@ library(gamm4)
 library(ggplot2)
 library(openxlsx)
 
-
+## Public FIT counts ----
 
 FIT_public <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\data outputs current versions\\tblEXPORT_PublicFITCount.csv", 
                  header = T, stringsAsFactors = F)
@@ -115,22 +115,19 @@ FIT_public_2018_GB$habitat_class <- as.factor(FIT_public_2018_GB$habitat_class)
 #           row.names = FALSE)
 
 
-# FIT_public_2018_GB <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_public_2018_GB.csv",
-#                                header = TRUE)
-# 
-# FIT_public_2018_GB$flower_context <- factor(FIT_public_2018_GB$flower_context,
-#                                             ordered = T, levels = c("More or less isolated",
-#                                                                     "Growing in a larger patch of the same flower",
-#                                                                     "Growing in a larger patch of many different flowers"))
-# FIT_public_2018_GB$wind_speed <- factor(FIT_public_2018_GB$wind_speed,
-#                                         ordered = T, levels = c("Leaves still/moving occasionally",
-#                                                                 "Leaves moving gently all the time",
-#                                                                 "Leaves moving strongly"))
-# 
-# FIT_public_2018_GB$flower_class <- as.factor(FIT_public_2018_GB$flower_class)
+FIT_public_2018_GB <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_public_2018_GB.csv",
+                              header = TRUE)
+FIT_public_2018_GB$flower_context <- factor(FIT_public_2018_GB$flower_context,
+                                           ordered = T, levels = c("More or less isolated",
+                                                                   "Growing in a larger patch of the same flower",
+                                                                  "Growing in a larger patch of many different flowers"))
+FIT_public_2018_GB$wind_speed <- factor(FIT_public_2018_GB$wind_speed,
+                                       ordered = T, levels = c("Leaves still/moving occasionally",
+                                                               "Leaves moving gently all the time",
+                                                               "Leaves moving strongly"))
+FIT_public_2018_GB$flower_class <- as.factor(FIT_public_2018_GB$flower_class)
 
-
-# ## Data exploration ----
+## Data exploration ----
 
 JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = all_insects_total)) +
   geom_point(color = "goldenrod") +
@@ -851,3 +848,325 @@ par(mfrow = c(2,2))
 gam.check(FIT_public_insects_small_gamm$gam, type = "deviance")
 
 plot.gam(FIT_public_insects_small_gamm$gam, all.terms = TRUE)
+
+
+
+## 1 Km FIT counts ----
+
+FIT_1Km <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\data outputs current versions\\tblEXPORT_1kmFITCount.csv",
+                    header = T, stringsAsFactors = FALSE)
+
+
+str(FIT_1Km)
+
+FIT_1Km$habitat <- tolower(FIT_1Km$habitat)
+FIT_1Km$habitat_other_detail <- tolower(FIT_1Km$habitat_other_detail)
+
+str(habitat_class)
+names(habitat_class)[3] <- "habitat_class"
+habitat_class$habitat <- tolower(habitat_class$habitat)
+habitat_class <- distinct(habitat_class, habitat, .keep_all = TRUE)
+#habitat_class <- habitat_class[,-1]
+
+str(flower_class)
+names(flower_class)[2] <- "flower_class"
+flower_class <- distinct(flower_class)
+
+# change NAs to 0s
+FIT_1Km <- FIT_1Km %>%
+  mutate(bumblebees = replace_na(bumblebees, 0),
+         honeybees = replace_na(honeybees, 0),
+         solitary_bees = replace_na(solitary_bees, 0),
+         wasps = replace_na(wasps, 0),
+         hoverflies = replace_na(hoverflies, 0),
+         other_flies = replace_na(other_flies, 0),
+         butterflies_moths = replace_na(butterflies_moths, 0),
+         beetles = replace_na(beetles, 0),
+         insects_small = replace_na(insects_small, 0),
+         insects_other = replace_na(insects_other, 0),
+         all_insects_total = replace_na(all_insects_total, 0))
+
+FIT_1Km <- FIT_1Km %>%
+  mutate(date = as.Date(date, format = "%d/%m/%Y %H:%M"),
+         JulDate = as.numeric(format(date, "%j")),
+         year = as.factor(format(date,"%Y")),
+         site_1km = as.factor(reformat_gr(FIT_1Km$sample_gridref, prec_out = 1000)),
+         site_1km_num = as.numeric(site_1km),
+         country = as.factor(country),
+         flower_new = as.factor(case_when(target_flower_corrected == "Other - please describe below" ~ "Other",
+                                          TRUE ~ "Target")),
+         flower_context = replace(flower_context, which(flower_context == "Not recorded"), NA),
+         flower_context = factor(flower_context, order = TRUE,
+                                 levels = c("More or less isolated", 
+                                            "Growing in a larger patch of the same flower", 
+                                            "Growing in a larger patch of many different flowers")),
+         wind_speed = factor(wind_speed, order = TRUE, 
+                             levels = c("Leaves still/moving occasionally",
+                                        "Leaves moving gently all the time",
+                                        "Leaves moving strongly"))) %>%
+  left_join(flower_class, by = "target_flower_family") %>%
+  left_join(habitat_class, by = "habitat") %>%
+  left_join(habitat_class, by = c("habitat_other_detail" = "habitat")) %>%
+  mutate(habitat_class = coalesce(habitat_class.x, habitat_class.y)) %>%
+  select(-one_of(c("habitat_class.x", "habitat_class.y", "type.x", "type.y")))
+
+str(FIT_1Km)
+
+# some tests to make sure we have correclty classified all the observations
+summary(as.factor(FIT_1Km$habitat_class))
+# all obs are classified as either U, A or N
+
+summary(as.factor(FIT_1Km$flower_class))
+
+
+table(FIT_1Km$country)
+
+FIT_1Km$flower_class <- as.factor(FIT_1Km$flower_class)
+FIT_1Km$habitat_class <- as.factor(FIT_1Km$habitat_class)
+
+
+write.csv(FIT_1Km,
+         file = "P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_1Km_processed.csv",
+         row.names = FALSE)
+
+
+FIT_1Km <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_1Km_processed.csv",
+                    header = TRUE)
+
+FIT_1Km$flower_context <- factor(FIT_1Km$flower_context,
+                                 ordered = T, levels = c("More or less isolated",
+                                                         "Growing in a larger patch of the same flower",
+                                                         "Growing in a larger patch of many different flowers"))
+FIT_1Km$wind_speed <- factor(FIT_1Km$wind_speed,
+                             ordered = T, levels = c("Leaves still/moving occasionally",
+                                                     "Leaves moving gently all the time",
+                                                     "Leaves moving strongly"))
+
+FIT_1Km$flower_class <- as.factor(FIT_1Km$flower_class)
+
+FIT_1Km$year <- as.factor(FIT_1Km$year)
+
+
+# ## Data exploration ----
+
+JulDate_by_country <- ggplot(data = FIT_1Km, aes(x = JulDate, y = all_insects_total)) +
+  geom_point(color = "goldenrod") +
+  geom_smooth(color = "darkblue") +
+  facet_wrap(~country + year) +
+  xlab("Julian date") +
+  ylab("All insects abundance") +
+  theme_bw()
+
+JulDate_by_country
+
+abund_by_wind <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = wind_speed, y = all_insects_total)) +
+  xlab("Wind speed") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
+        panel.background = element_blank())
+
+abund_by_wind
+
+abund_by_flower <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = flower_new, y = all_insects_total)) +
+  xlab("Flower type") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme_bw()
+
+abund_by_flower
+
+abund_by_context <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = flower_context, y = all_insects_total)) +
+  xlab("Flower context") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
+        panel.background = element_blank())
+
+abund_by_context
+
+## GAMM for all insects ----
+
+FIT_1Km_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
+                           floral_unit_count + flower_context + wind_speed + habitat_class 
+                           + year, family = poisson, random = ~(1|country/site_1km), 
+                           data = FIT_1Km)
+
+FIT_1Km_gamm_1$mer
+summary(FIT_1Km_gamm_1$gam)
+
+plot(FIT_1Km_gamm_1$gam, pages = 1)
+
+
+par(mfrow = c(2,2))
+gam.check(FIT_1Km_gamm_1$gam, type = "deviance")
+
+plot.gam(FIT_1Km_gamm_1$gam, all.terms = TRUE)
+
+
+
+
+## All bees ----
+
+# calculate the counts for all bees as a sum of all the different bee groups
+FIT_1Km <- FIT_1Km %>%
+  rowwise() %>%
+  mutate(all_bees = sum(bumblebees, honeybees, solitary_bees))
+
+
+bee_JulDate_by_country <- ggplot(data = FIT_1Km, aes(x = JulDate, y = all_bees)) +
+  geom_point(color = "goldenrod") +
+  geom_smooth(color = "darkblue") +
+  facet_wrap(~country) +
+  xlab("Julian date") +
+  ylab("All insects abundance") +
+  theme_bw()
+
+bee_JulDate_by_country
+
+bee_abund_by_wind <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = wind_speed, y = all_bees)) +
+  xlab("Wind speed") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme_bw()
+
+bee_abund_by_wind
+
+bee_abund_by_flower <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = flower_new, y = all_bees)) +
+  xlab("Flower type") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme_bw()
+
+bee_abund_by_flower
+
+bee_abund_by_context <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = flower_context, y = all_bees)) +
+  xlab("Flower context") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
+        panel.background = element_blank())
+
+bee_abund_by_context
+
+## GAMM for all_bees ----
+
+FIT_1Km_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
+                               floral_unit_count + flower_context + wind_speed + 
+                               habitat_class + year, family = poisson, 
+                               random = ~(1|country/site_1km), data = FIT_1Km)
+
+FIT_1Km_bee_gamm_1$mer
+summary(FIT_1Km_bee_gamm_1$gam)
+
+plot(FIT_1Km_bee_gamm_1$gam, pages = 1)
+
+
+par(mfrow = c(2,2))
+gam.check(FIT_1Km_bee_gamm_1$gam, type = "deviance")
+
+plot.gam(FIT_1Km_bee_gamm_1$gam, all.terms = T)
+
+## Hoverflies ----
+
+hoverflies_JulDate_by_country <- ggplot(data = FIT_1Km, aes(x = JulDate, y = hoverflies)) +
+  geom_point(color = "goldenrod") +
+  geom_smooth(color = "darkblue") +
+  facet_wrap(~country) +
+  xlab("Julian date") +
+  ylab("All insects abundance") +
+  theme_bw()
+
+hoverflies_JulDate_by_country
+
+hoverflies_abund_by_wind <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = wind_speed, y = hoverflies)) +
+  xlab("Wind speed") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
+        panel.background = element_blank())
+
+hoverflies_abund_by_wind
+
+hoverflies_abund_by_flower <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = flower_class, y = hoverflies)) +
+  xlab("Flower type") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme_bw()
+
+hoverflies_abund_by_flower
+
+hoverflies_abund_by_context <- ggplot(data = FIT_1Km) +
+  geom_boxplot(aes(x = flower_context, y = hoverflies)) +
+  xlab("Flower context") +
+  ylab("All insects abundance") +
+  facet_wrap(~country) +
+  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
+        panel.background = element_blank())
+
+hoverflies_abund_by_context
+
+## GAMM for hoverflies ----
+
+FIT_1Km_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
+                                 floral_unit_count + flower_context + wind_speed + 
+                                 habitat_class + year, family = poisson, 
+                                 random = ~(1|country/site_1km), data = FIT_1Km)
+
+FIT_1Km_hoverflies_gamm$mer
+summary(FIT_1Km_hoverflies_gamm$gam)
+
+par(mfrow = c(2,2))
+gam.check(FIT_1Km_hoverflies_gamm$gam, type = "deviance")
+
+plot.gam(FIT_1Km_hoverflies_gamm$gam, all.terms = TRUE)
+
+
+
+# The models fit to the two datasets seem to return very similar results.
+# One effect seems to be consistently differen:
+# In public FIT counts urban habitat usually has the highest number of insects
+# while in the 1 Km FIT counts seminatural habitat is the habitat class with more insects.
+# It is possible this result is an artifact of the number of counts conducted 
+# in the different habitat classes in the two surveys.
+
+Public_FIT_habitat <- ggplot(data = FIT_public_2018_GB) +
+  geom_bar(aes(x = habitat_class), fill = "darkblue", show.legend=FALSE) +
+  xlab("Habitat type") +
+  ylab("Public FIT counts") #+
+  # theme(axis.title.x=element_text(size=4),  # don't display x and y axes labels, titles and tickmarks
+  #       axis.text.x=element_text(angle=50, vjust=1, hjust=1),
+  #       axis.title.y=element_text(size=4),
+  #       axis.ticks = element_line(size = 0.1),
+  #       text=element_text(size=4),
+  #       panel.background = element_blank())
+
+OneKm_FIT_habitat <- ggplot(data = FIT_1Km) +
+  geom_bar(aes(x = habitat_class, fill = year), position = "dodge", show.legend=TRUE) +
+  scale_fill_manual(values = c("darkgoldenrod1", "darkblue"), guide = guide_legend(title = "Year")) +
+  xlab("Habitat type") +
+  ylab("1Km FIT counts") #+
+  # theme(axis.title.x=element_text(size=4),  
+  #       axis.text.x=element_text(angle=50, vjust=1, hjust=1),
+  #       axis.title.y=element_text(size=4),
+  #       axis.ticks = element_line(size = 0.1),
+  #       text=element_text(size=4),
+  #       panel.background = element_blank(),
+  #       legend.text=element_text(size=4),
+  #       legend.key.size = unit(0.2, "cm"))
+
+source("../Descriptive Stats/multiplot.R")
+
+multiplot(Public_FIT_habitat, OneKm_FIT_habitat)
+
+# Indeed when plotting the number of counts conducted per habitat type,
+# most public FIT counts were conducted in urban habitat, while
+# most 1Km FIT counts were conducted in seminatural habitat.
