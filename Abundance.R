@@ -2,7 +2,7 @@
 ## Task 4.2 Models B - total abundance of pollinating insects
 ## Author: Francesca Mancini
 ## Date created: 2019-03-18
-## Date modified: 2019-04-11
+## Date modified: 2019-04-12
 ####################################################################
 
 
@@ -12,6 +12,7 @@ library(tidyr)
 library(gamm4)
 library(ggplot2)
 library(openxlsx)
+library(mgcViz)
 
 ## Public FIT counts ----
 
@@ -210,35 +211,127 @@ anova(FIT_public_gamm_3$gam)
 par(mfrow = c(2,2))
 gam.check(FIT_public_gamm_3$gam, type = "deviance")
 
-plot.gam(FIT_public_gamm_3$gam, all.terms = TRUE)
-
-library(mgcViz)
-all_insects_gamm1_viz <- getViz(FIT_public_gamm_1$gam)
-
-all_insects_smoother_En <- plot(sm(all_insects_gamm1_viz, 1))
-all_insects_smoother_Sc <- plot(sm(all_insects_gamm1_viz, 2))
-all_insects_smoother_Wa <- plot(sm(all_insects_gamm1_viz, 3))
+plot.gam(FIT_public_gamm_3$gam,  
+         shift = FIT_public_gamm_3$gam$coefficients[1], trans = exp)
 
 
-
-all_insects_smoother_En + 
-  l_fitLine(colour = "red") + l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + theme_classic()
+all_insects_gamm_viz <- getViz(FIT_public_gamm_3$gam)
 
 
-all_insects_smoother_Sc + 
-  l_fitLine(colour = "red") + l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + theme_classic()
+all_insects_smoother_En <- plot(sm(all_insects_gamm_viz, 1))
+all_insects_smoother_Sc <- plot(sm(all_insects_gamm_viz, 2))
+all_insects_smoother_Wa <- plot(sm(all_insects_gamm_viz, 3))
 
-all_insects_smoother_Wa + 
-  l_fitLine(colour = "red") + l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + theme_classic()
+all_insects_flower_class <- plot(pterm(all_insects_gamm_viz, 1))
+all_insects_flower_count <- plot(pterm(all_insects_gamm_viz, 2))
+all_insects_flower_context <- plot(pterm(all_insects_gamm_viz, 3))
+
+all_insects_sunshine <- plot(pterm(all_insects_gamm_viz, 4))
+
+all_insects_habitat <- plot(pterm(all_insects_gamm_viz, 5))
+
+all_insects_country <- plot(pterm(all_insects_gamm_viz, 6))
 
 
-print(plot(all_insects_gamm1_viz, allTerms = T), pages = 1) 
+England <- all_insects_smoother_En + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("England") +
+  theme_classic()
+
+
+Scotland <- all_insects_smoother_Sc + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Scotland") +
+  theme_classic()
+
+Wales <- all_insects_smoother_Wa + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Wales") +
+  theme_classic()
+
+gridPrint(England, Scotland, Wales, ncol = 3)
+
+listLayers(all_insects_flower_class)
+
+Flower_class <- all_insects_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+  
+Flower_count <- all_insects_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Floral unit count") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+Flower_context <- all_insects_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch  (same flower)", 
+                              "Large patch (may flowers)")) +
+  theme_classic()
+
+Sunshine <- all_insects_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+Habitat <- all_insects_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Country <- all_insects_country + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Country") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+
+gridPrint(Flower_class, Flower_count, Flower_context,
+          Sunshine, Habitat, Country, ncol = 2)
+
 
 ## All bees ----
 
@@ -324,6 +417,74 @@ plot(FIT_public_bee_gamm_3$gam, pages = 1)
 
 plot.gam(FIT_public_bee_gamm_3$gam, all.terms = TRUE, pages = 1)
 
+bees_gamm_viz <- getViz(FIT_public_bee_gamm_3$gam)
+
+
+bees_smoother <- plot(sm(bees_gamm_viz, 1))
+
+bees_flower_context <- plot(pterm(bees_gamm_viz, 1))
+
+bees_sunshine <- plot(pterm(bees_gamm_viz, 2))
+
+bees_habitat <- plot(pterm(bees_gamm_viz, 3))
+
+bees_country <- plot(pterm(bees_gamm_viz, 4))
+
+
+JulDate <- bees_smoother + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  theme_classic()
+
+Flower_context <- bees_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch  (same flower)", 
+                              "Large patch (may flowers)")) +
+  theme_classic()
+
+Sunshine <- bees_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on bee count") +
+  theme_classic()
+
+Habitat <- bees_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Country <- bees_country + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Country") +
+  ylab("Effect on bee count") +
+  theme_classic()
+
+
+gridPrint(JulDate, Flower_context,
+          Sunshine, Habitat, Country, ncol = 2)
 
 
 ## Hoverflies
@@ -368,7 +529,7 @@ hoverflies_abund_by_context
 
 ## GAMM for hoverflies ----
 
-FIT_public_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
+FIT_public_hoverflies_gamm_1 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
                                       floral_unit_count + flower_context + wind_speed + 
                                       sunshine + habitat_class + country,
                                       family = poisson, random = ~(1|country/site_1km), 
@@ -382,10 +543,10 @@ FIT_public_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
 
 AIC(FIT_public_hoverflies_gamm$mer, FIT_public_hoverflies_gamm_2$mer)
 
-anova(FIT_public_hoverflies_gamm$gam)
+anova(FIT_public_hoverflies_gamm_1$gam)
 
 FIT_public_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
-                                        floral_unit_count + flower_context + wind_speed,
+                                        floral_unit_count + flower_context,
                                       family = poisson, random = ~(1|country/site_1km), 
                                       data = FIT_public_2018_GB)
 
@@ -398,6 +559,89 @@ par(mfrow = c(2,2))
 gam.check(FIT_public_hoverflies_gamm_3$gam, type = "deviance")
 
 plot.gam(FIT_public_hoverflies_gamm_3$gam, all.terms = TRUE, pages = 1)
+
+
+hoverflies_gamm_viz <- getViz(FIT_public_hoverflies_gamm_3$gam)
+
+
+hoverflies_smoother_En <- plot(sm(hoverflies_gamm_viz, 1))
+hoverflies_smoother_Sc <- plot(sm(hoverflies_gamm_viz, 2))
+hoverflies_smoother_Wa <- plot(sm(hoverflies_gamm_viz, 3))
+
+hoverflies_flower_class <- plot(pterm(all_insects_gamm_viz, 1))
+hoverflies_flower_count <- plot(pterm(all_insects_gamm_viz, 2))
+hoverflies_flower_context <- plot(pterm(all_insects_gamm_viz, 3))
+
+
+England <- hoverflies_smoother_En + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("England") +
+  theme_classic()
+
+
+Scotland <- hoverflies_smoother_Sc + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Scotland") +
+  theme_classic()
+
+Wales <- hoverflies_smoother_Wa + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Wales") +
+  theme_classic()
+
+gridPrint(England, Scotland, Wales, ncol = 3)
+
+
+Flower_class <- hoverflies_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+Flower_count <- hoverflies_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Floral unit count") +
+  ylab("Effect on hoverfly count") +
+  theme_classic()
+
+Flower_context <- hoverflies_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch  (same flower)", 
+                              "Large patch (may flowers)")) +
+  theme_classic()
+
+gridPrint(Flower_class, Flower_count, Flower_context,ncol = 3)
+
+
 
 # ## Bumblebees ----
 # 
@@ -1068,7 +1312,6 @@ FIT_1Km_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_cl
                         sunshine + habitat_class + country + year, 
                         family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
 
-plot(FIT_1Km_gamm_1$gam, pages = 1)
 
 FIT_1Km_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
                         floral_unit_count + flower_context + wind_speed + 
@@ -1090,6 +1333,151 @@ gam.check(FIT_1Km_gamm_1$gam, type = "deviance")
 
 plot.gam(FIT_1Km_gamm_1$gam, all.terms = TRUE, pages = 1)
 
+all_insects_1km_gamm_viz <- getViz(FIT_1Km_gamm_1$gam)
+
+
+all_insects_1km_smoother_En <- plot(sm(all_insects_1km_gamm_viz, 1))
+all_insects_1km_smoother_Sc <- plot(sm(all_insects_1km_gamm_viz, 2))
+all_insects_1km_smoother_Wa <- plot(sm(all_insects_1km_gamm_viz, 3))
+
+all_insects_1km_flower_class <- plot(pterm(all_insects_1km_gamm_viz, 1))
+all_insects_1km_flower_count <- plot(pterm(all_insects_1km_gamm_viz, 2))
+all_insects_1km_flower_context <- plot(pterm(all_insects_1km_gamm_viz, 3))
+
+all_insects_1km_wind <- plot(pterm(all_insects_1km_gamm_viz, 4))
+all_insects_1km_sunshine <- plot(pterm(all_insects_1km_gamm_viz, 5))
+
+all_insects_1km_habitat <- plot(pterm(all_insects_1km_gamm_viz, 6))
+
+all_insects_1km_country <- plot(pterm(all_insects_1km_gamm_viz, 7))
+
+all_insects_1km_year <- plot(pterm(all_insects_1km_gamm_viz, 8))
+
+England <- all_insects_1km_smoother_En + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("England") +
+  theme_classic()
+
+
+Scotland <- all_insects_1km_smoother_Sc + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Scotland") +
+  theme_classic()
+
+Wales <- all_insects_1km_smoother_Wa + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Wales") +
+  theme_classic()
+
+gridPrint(England, Scotland, Wales, ncol = 3)
+
+
+Flower_class <- all_insects_1km_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+Flower_count <- all_insects_1km_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Floral unit count") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+Flower_context <- all_insects_1km_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Same flower", 
+                              "Different flowers")) +
+  theme_classic()
+
+Wind <- all_insects_1km_wind + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Wind speed during count") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+                              "Leaves moving gently all the time",
+                              "Leaves moving strongly"), 
+                   labels = c("Low", 
+                              "Medium", 
+                              "High")) +
+  theme_classic()
+
+
+Sunshine <- all_insects_1km_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Partly in sun and partly shaded",
+                              "Entirely shaded"), 
+                   labels = c("Sunny", 
+                              "Partly", 
+                              "Shaded")) +
+  theme_classic()
+
+Habitat <- all_insects_1km_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Country <- all_insects_1km_country + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Country") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+Year <- all_insects_1km_year + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Year") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+gridPrint(Flower_class, Flower_count, Flower_context,
+          Wind, Sunshine, Habitat, Country, Year, ncol = 3)
 
 
 
@@ -1146,7 +1534,6 @@ FIT_1Km_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
                             sunshine + habitat_class + country + year, 
                             family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
 
-plot(FIT_1Km_bee_gamm_1$gam, pages = 1)
 
 FIT_1Km_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_class +
                               floral_unit_count + flower_context + wind_speed + 
@@ -1172,6 +1559,132 @@ par(mfrow = c(2,2))
 gam.check(FIT_1Km_bee_gamm_3$gam, type = "deviance")
 
 plot.gam(FIT_1Km_bee_gamm_3$gam, all.terms = T, pages = 1)
+
+
+bees_1km_gamm_viz <- getViz(FIT_1Km_bee_gamm_3$gam)
+
+
+bees_1km_smoother_En <- plot(sm(bees_1km_gamm_viz, 1))
+bees_1km_smoother_Sc <- plot(sm(bees_1km_gamm_viz, 2))
+bees_1km_smoother_Wa <- plot(sm(bees_1km_gamm_viz, 3))
+
+bees_1km_flower_class <- plot(pterm(bees_1km_gamm_viz, 1))
+bees_1km_flower_context <- plot(pterm(bees_1km_gamm_viz, 2))
+
+bees_1km_wind <- plot(pterm(bees_1km_gamm_viz, 3))
+
+bees_1km_habitat <- plot(pterm(bees_1km_gamm_viz, 4))
+
+bees_1km_country <- plot(pterm(bees_1km_gamm_viz, 5))
+
+
+England <- bees_1km_smoother_En + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("England") +
+  theme_classic()
+
+
+Scotland <- bees_1km_smoother_Sc + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Scotland") +
+  theme_classic()
+
+Wales <- bees_1km_smoother_Wa + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Wales") +
+  theme_classic()
+
+gridPrint(England, Scotland, Wales, ncol = 3)
+
+
+Flower_class <- bees_1km_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+Flower_count <- bees_1km_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Floral unit count") +
+  ylab("Effect on bee count") +
+  theme_classic()
+
+Flower_context <- bees_1km_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Same flower", 
+                              "Different flowers")) +
+  theme_classic()
+
+Wind <- bees_1km_wind + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Wind speed during count") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+                              "Leaves moving gently all the time",
+                              "Leaves moving strongly"), 
+                   labels = c("Low", 
+                              "Medium", 
+                              "High")) +
+  theme_classic()
+
+
+
+Habitat <- all_insects_1km_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Country <- bees_1km_country + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Country") +
+  ylab("Effect on bee count") +
+  theme_classic()
+
+
+gridPrint(Flower_class, Flower_count, Flower_context,
+          Wind, Habitat, Country, ncol = 3)
+
+
 
 ## Hoverflies ----
 
@@ -1222,7 +1735,6 @@ FIT_1Km_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_
                                  family = poisson, random = ~(1|country/site_1km), 
                                  data = FIT_1Km)
 
-plot(FIT_1Km_hoverflies_gamm$gam, pages = 1)
 
 FIT_1Km_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
                                    floral_unit_count + flower_context + wind_speed + 
@@ -1234,13 +1746,126 @@ AIC(FIT_1Km_hoverflies_gamm$mer, FIT_1Km_hoverflies_gamm_2$mer)
 
 anova(FIT_1Km_hoverflies_gamm$gam)
 
-FIT_1Km_hoverflies_gamm$mer
-summary(FIT_1Km_hoverflies_gamm$gam)
+FIT_1Km_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +  
+                                     sunshine + habitat_class + country + year, 
+                                   family = poisson, random = ~(1|country/site_1km), 
+                                   data = FIT_1Km)
+
+
+FIT_1Km_hoverflies_gamm_3$mer
+summary(FIT_1Km_hoverflies_gamm_3$gam)
 
 par(mfrow = c(2,2))
-gam.check(FIT_1Km_hoverflies_gamm$gam, type = "deviance")
+gam.check(FIT_1Km_hoverflies_gamm_3$gam, type = "deviance")
 
-plot.gam(FIT_1Km_hoverflies_gamm$gam, all.terms = TRUE, pages = 1)
+plot.gam(FIT_1Km_hoverflies_gamm_3$gam, all.terms = TRUE, pages = 1)
+
+hover_1km_gamm_viz <- getViz(FIT_1Km_hoverflies_gamm_3$gam)
+
+
+hover_1km_smoother_En <- plot(sm(hover_1km_gamm_viz, 1))
+hover_1km_smoother_Sc <- plot(sm(hover_1km_gamm_viz, 2))
+hover_1km_smoother_Wa <- plot(sm(hover_1km_gamm_viz, 3))
+
+hover_1km_flower_class <- plot(pterm(hover_1km_gamm_viz, 1))
+
+hover_1km_sunshine <- plot(pterm(hover_1km_gamm_viz, 2))
+
+hover_1km_habitat <- plot(pterm(hover_1km_gamm_viz, 3))
+
+hover_1km_country <- plot(pterm(hover_1km_gamm_viz, 4))
+
+hover_1km_year <- plot(pterm(hover_1km_gamm_viz, 5))
+
+England <- hover_1km_smoother_En + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("England") +
+  theme_classic()
+
+
+Scotland <- hover_1km_smoother_Sc + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Scotland") +
+  theme_classic()
+
+Wales <- hover_1km_smoother_Wa + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
+  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
+  l_points(shape = 19, size = 1, alpha = 0.1) + 
+  xlab("Julian date") +
+  ylab("Seasonality") +
+  ggtitle("Wales") +
+  theme_classic()
+
+gridPrint(England, Scotland, Wales, ncol = 3)
+
+
+Flower_class <- hover_1km_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+
+
+Sunshine <- hover_1km_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Partly in sun and partly shaded",
+                              "Entirely shaded"), 
+                   labels = c("Sunny", 
+                              "Partly", 
+                              "Shaded")) +
+  theme_classic()
+
+Habitat <- hover_1km_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Country <- hover_1km_country + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Country") +
+  ylab("Effect on hoverfly count") +
+  theme_classic()
+
+Year <- hover_1km_year + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Year") +
+  ylab("Effect on hoverfly count") +
+  theme_classic()
+
+gridPrint(Flower_class, Sunshine, Habitat, 
+          Country, Year, ncol = 3)
 
 
 
