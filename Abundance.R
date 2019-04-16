@@ -2,7 +2,7 @@
 ## Task 4.2 Models B - total abundance of pollinating insects
 ## Author: Francesca Mancini
 ## Date created: 2019-03-18
-## Date modified: 2019-04-12
+## Date modified: 2019-04-16
 ####################################################################
 
 
@@ -133,94 +133,66 @@ FIT_public_2018_GB$sunshine <- factor(FIT_public_2018_GB$sunshine,
 
 FIT_public_2018_GB$flower_class <- as.factor(FIT_public_2018_GB$flower_class)
 
-## Data exploration ----
-
-JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = all_insects_total)) +
-  geom_point(color = "goldenrod") +
-  geom_smooth(color = "darkblue") +
-  facet_wrap(~country) +
-  xlab("Julian date") +
-  ylab("All insects abundance") +
-  theme_bw()
-
-abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = wind_speed, y = all_insects_total)) +
-  xlab("Wind speed") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-
-abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = flower_new, y = all_insects_total)) +
-  xlab("Flower type") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = flower_context, y = all_insects_total)) +
-  xlab("Flower context") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
 
 ## GAMM for all insects ----
 
-FIT_public_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
-                            floral_unit_count + flower_context + wind_speed + 
-                            sunshine + habitat_class + country,
-                            family = poisson, random = ~(1|country/site_1km), 
-                            data = FIT_public_2018_GB)
+FIT_public_allInsects_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + 
+                                        flower_class + floral_unit_count + flower_context + 
+                                        wind_speed + sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
 
-FIT_public_gamm_1$mer
+FIT_public_allInsects_gamm_1$mer
 # plot(ranef(FIT_public_gamm_1$mer))
-summary(FIT_public_gamm_1$gam)
+summary(FIT_public_allInsects_gamm_1$gam)
 
 
-FIT_public_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
-                             floral_unit_count + flower_context + wind_speed + 
-                             sunshine + habitat_class + country,
-                           family = poisson, random = ~(1|country/site_1km), 
-                           data = FIT_public_2018_GB)
+FIT_public_allInsects_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
+                                        floral_unit_count + flower_context + wind_speed + 
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
 
 FIT_public_gamm_2$mer
 # plot(ranef(FIT_public_gamm_1$mer))
 summary(FIT_public_gamm_2$gam)
 
-AIC(FIT_public_gamm_1$mer)
-AIC(FIT_public_gamm_2$mer)
+AIC(FIT_public_allInsects_gamm_1$mer, FIT_public_allInsects_gamm_2$mer)
 
-anova(FIT_public_gamm_1$gam)
+anova(FIT_public_allInsects_gamm_1$gam)
 
-
-FIT_public_gamm_3 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
-                             floral_unit_count + flower_context +  
-                             sunshine + habitat_class + country,
-                           family = poisson, random = ~(1|country/site_1km), 
-                           data = FIT_public_2018_GB)
+FIT_public_allInsects_gamm_3 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
+                                        floral_unit_count + flower_context +  
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
 
 
-FIT_public_gamm_3$mer
+FIT_public_allInsects_gamm_3$mer
 # plot(ranef(FIT_public_gamm_1$mer))
-summary(FIT_public_gamm_3$gam)
+summary(FIT_public_allInsects_gamm_3$gam)
 
-anova(FIT_public_gamm_3$gam)
 
 par(mfrow = c(2,2))
-gam.check(FIT_public_gamm_3$gam, type = "deviance")
+gam.check(FIT_public_allInsects_gamm_3$gam, type = "deviance")
 
-plot.gam(FIT_public_gamm_3$gam,  
-         shift = FIT_public_gamm_3$gam$coefficients[1], trans = exp)
+png("./Plots/FIT_public_allInsects_smoothers.png", 
+    width = 185, height = 150, unit = "mm", res = 300)
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_public_allInsects_gamm_3$gam,  
+         shift = FIT_public_allInsects_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Total insect count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+dev.off()
 
 
-all_insects_gamm_viz <- getViz(FIT_public_gamm_3$gam)
+all_insects_gamm_viz <- getViz(FIT_public_allInsects_gamm_3$gam)
 
-
-all_insects_smoother_En <- plot(sm(all_insects_gamm_viz, 1))
-all_insects_smoother_Sc <- plot(sm(all_insects_gamm_viz, 2))
-all_insects_smoother_Wa <- plot(sm(all_insects_gamm_viz, 3))
 
 all_insects_flower_class <- plot(pterm(all_insects_gamm_viz, 1))
 all_insects_flower_count <- plot(pterm(all_insects_gamm_viz, 2))
@@ -230,43 +202,6 @@ all_insects_sunshine <- plot(pterm(all_insects_gamm_viz, 4))
 
 all_insects_habitat <- plot(pterm(all_insects_gamm_viz, 5))
 
-all_insects_country <- plot(pterm(all_insects_gamm_viz, 6))
-
-
-England <- all_insects_smoother_En + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("England") +
-  theme_classic()
-
-
-Scotland <- all_insects_smoother_Sc + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Scotland") +
-  theme_classic()
-
-Wales <- all_insects_smoother_Wa + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Wales") +
-  theme_classic()
-
-gridPrint(England, Scotland, Wales, ncol = 3)
-
-listLayers(all_insects_flower_class)
 
 Flower_class <- all_insects_flower_class + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
@@ -276,15 +211,24 @@ Flower_class <- all_insects_flower_class +
   ylab("Effect on total insect count") +
   scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
   theme_classic()
+
+png("./Plots/FIT_public_allInsects_flowerClass.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_class
+dev.off()
   
 Flower_count <- all_insects_flower_count + 
   l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
   l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
   xlab("Floral unit count") +
   ylab("Effect on total insect count") +
-  theme_classic()
+  theme_classic() 
+
+png("./Plots/FIT_public_allInsects_flowerCount.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_count
+dev.off()
+
 
 Flower_context <- all_insects_flower_context + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
@@ -296,9 +240,14 @@ Flower_context <- all_insects_flower_context +
                               "Growing in a larger patch of the same flower",
                               "Growing in a larger patch of many different flowers"), 
                    labels = c("Isolated", 
-                              "Large patch  (same flower)", 
-                              "Large patch (may flowers)")) +
-  theme_classic()
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
+  theme_classic() 
+
+png("./Plots/FIT_public_allInsects_flowerContext.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_context
+dev.off()
 
 Sunshine <- all_insects_sunshine + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
@@ -306,11 +255,24 @@ Sunshine <- all_insects_sunshine +
   l_rug(alpha = 0.3) +
   xlab("Sunshine during count") +
   ylab("Effect on total insect count") +
-  theme_classic()
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Entirely shaded", 
+                              "Partly in sun and partly shaded"), 
+                   labels = c("In sunshine", 
+                              "Shaded", 
+                              "Partly")) +
+  theme_classic() 
+
+png("./Plots/FIT_public_allInsects_sunshine.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Sunshine
+dev.off()
+
+
 
 Habitat <- all_insects_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on total insect count") +
@@ -318,20 +280,19 @@ Habitat <- all_insects_habitat +
                    labels = c("Agricultural", 
                               "Semi-natural", 
                               "Urban")) +
-  theme_classic()
+  theme_classic() 
 
-Country <- all_insects_country + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
-  l_rug(alpha = 0.3) +
-  xlab("Country") +
-  ylab("Effect on total insect count") +
-  theme_classic()
+png("./Plots/FIT_public_allInsects_habitat.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Habitat
+dev.off()
 
 
+png("./Plots/FIT_public_allInsects_parametric.png", 
+    width = 180, height = 160, unit = "mm", res = 300)
 gridPrint(Flower_class, Flower_count, Flower_context,
-          Sunshine, Habitat, Country, ncol = 2)
-
+          Sunshine, Habitat, ncol = 2, top = "")
+dev.off()
 
 ## All bees ----
 
@@ -341,58 +302,21 @@ FIT_public_2018_GB <- FIT_public_2018_GB %>%
   mutate(all_bees = sum(bumblebees, honeybees, solitary_bees))
 
 
-bee_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = all_bees)) +
-  geom_point(color = "goldenrod") +
-  geom_smooth(color = "darkblue") +
-  facet_wrap(~country) +
-  xlab("Julian date") +
-  ylab("All insects abundance") +
-  theme_bw()
-
-bee_JulDate_by_country
-
-bee_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = wind_speed, y = all_bees)) +
-  xlab("Wind speed") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-bee_abund_by_wind
-
-bee_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = flower_new, y = all_bees)) +
-  xlab("Flower type") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-bee_abund_by_flower
-
-bee_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = flower_context, y = all_bees)) +
-  xlab("Flower context") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-bee_abund_by_context
-
 ## GAMM for all_bees ----
 
 FIT_public_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
                                 floral_unit_count + flower_context + wind_speed + 
                                  sunshine + habitat_class + country,
-                                family = poisson, random = ~(1|country/site_1km), 
+                                family = poisson, random = ~(1|site_1km), 
                                 data = FIT_public_2018_GB)
 
 
 FIT_public_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_class +
                                   floral_unit_count + flower_context + wind_speed + 
                                   sunshine + habitat_class + country,
-                                  family = poisson, random = ~(1|country/site_1km), 
+                                  family = poisson, random = ~(1|site_1km), 
                                   data = FIT_public_2018_GB)
+
 
 AIC(FIT_public_bee_gamm_1$mer, FIT_public_bee_gamm_2$mer)
 
@@ -401,10 +325,8 @@ anova(FIT_public_bee_gamm_2$gam)
 
 FIT_public_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate) + flower_context +  
                                  sunshine + habitat_class + country,
-                               family = poisson, random = ~(1|country/site_1km), 
-                               data = FIT_public_2018_GB)
-
-anova(FIT_public_bee_gamm_3$gam)
+                                 family = poisson, random = ~(1|site_1km), 
+                                 data = FIT_public_2018_GB)
 
 
 par(mfrow = c(2,2))
@@ -413,14 +335,23 @@ gam.check(FIT_public_bee_gamm_3$gam, type = "deviance")
 FIT_public_bee_gamm_3$mer
 summary(FIT_public_bee_gamm_3$gam)
 
-plot(FIT_public_bee_gamm_3$gam, pages = 1)
 
-plot.gam(FIT_public_bee_gamm_3$gam, all.terms = TRUE, pages = 1)
+
+png("./Plots/FIT_public_bees_smoother.png", 
+    width = 100, height = 80, unit = "mm", res = 300)
+par(mar=c(5,5,1,1), oma=c(2,1,1,1), mgp = c(3,1,0))
+plot.gam(FIT_public_bee_gamm_3$gam,  
+         shift = FIT_public_bee_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Bee count", shade = TRUE, shade.col = "grey",
+         cex.lab = 0.8, cex.axis = 0.5)
+dev.off()
+
 
 bees_gamm_viz <- getViz(FIT_public_bee_gamm_3$gam)
 
 
-bees_smoother <- plot(sm(bees_gamm_viz, 1))
+# bees_smoother <- plot(sm(bees_gamm_viz, 1))
 
 bees_flower_context <- plot(pterm(bees_gamm_viz, 1))
 
@@ -431,18 +362,9 @@ bees_habitat <- plot(pterm(bees_gamm_viz, 3))
 bees_country <- plot(pterm(bees_gamm_viz, 4))
 
 
-JulDate <- bees_smoother + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  theme_classic()
-
 Flower_context <- bees_flower_context + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower context") +
   ylab("Effect on bee count") +
@@ -450,21 +372,40 @@ Flower_context <- bees_flower_context +
                               "Growing in a larger patch of the same flower",
                               "Growing in a larger patch of many different flowers"), 
                    labels = c("Isolated", 
-                              "Large patch  (same flower)", 
-                              "Large patch (may flowers)")) +
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
   theme_classic()
+
+png("./Plots/FIT_public_bees_flowerContext.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_context
+dev.off()
+
 
 Sunshine <- bees_sunshine + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Sunshine during count") +
   ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Entirely shaded", 
+                              "Partly in sun and partly shaded"), 
+                   labels = c("In sunshine", 
+                              "Shaded", 
+                              "Partly")) +
   theme_classic()
+
+png("./Plots/FIT_public_bees_Sunshine.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Sunshine
+dev.off()
+
+
 
 Habitat <- bees_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on bee count") +
@@ -474,81 +415,58 @@ Habitat <- bees_habitat +
                               "Urban")) +
   theme_classic()
 
+png("./Plots/FIT_public_bees_Habitat.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Habitat
+dev.off()
+
+
 Country <- bees_country + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Country") +
   ylab("Effect on bee count") +
   theme_classic()
 
+png("./Plots/FIT_public_bees_Country.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Country
+dev.off()
 
-gridPrint(JulDate, Flower_context,
-          Sunshine, Habitat, Country, ncol = 2)
+
+png("./Plots/FIT_public_bees_parametric.png", 
+    width = 180, height = 160, unit = "mm", res = 300)
+gridPrint(Flower_context, Sunshine, Habitat, Country, ncol = 2)
+dev.off()
 
 
 ## Hoverflies
 
-hoverflies_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = hoverflies)) +
-  geom_point(color = "goldenrod") +
-  geom_smooth(color = "darkblue") +
-  facet_wrap(~country) +
-  xlab("Julian date") +
-  ylab("All insects abundance") +
-  theme_bw()
-
-hoverflies_JulDate_by_country
-
-hoverflies_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = wind_speed, y = hoverflies)) +
-  xlab("Wind speed") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-hoverflies_abund_by_wind
-
-hoverflies_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = flower_new, y = hoverflies)) +
-  xlab("Flower type") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-hoverflies_abund_by_flower
-
-hoverflies_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-  geom_boxplot(aes(x = flower_context, y = hoverflies)) +
-  xlab("Flower context") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-hoverflies_abund_by_context
-
 ## GAMM for hoverflies ----
 
 FIT_public_hoverflies_gamm_1 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
-                                      floral_unit_count + flower_context + wind_speed + 
-                                      sunshine + habitat_class + country,
-                                      family = poisson, random = ~(1|country/site_1km), 
-                                      data = FIT_public_2018_GB)
+                                        floral_unit_count + flower_context + wind_speed + 
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
 
 FIT_public_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
-                                      floral_unit_count + flower_context + wind_speed + 
-                                      sunshine + habitat_class + country,
-                                    family = poisson, random = ~(1|country/site_1km), 
-                                    data = FIT_public_2018_GB)
+                                        floral_unit_count + flower_context + wind_speed + 
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
 
-AIC(FIT_public_hoverflies_gamm$mer, FIT_public_hoverflies_gamm_2$mer)
+
+AIC(FIT_public_hoverflies_gamm_1$mer, FIT_public_hoverflies_gamm_2$mer)
 
 anova(FIT_public_hoverflies_gamm_1$gam)
 
 FIT_public_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
                                         floral_unit_count + flower_context,
-                                      family = poisson, random = ~(1|country/site_1km), 
-                                      data = FIT_public_2018_GB)
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
 
 
 
@@ -558,76 +476,59 @@ summary(FIT_public_hoverflies_gamm_3$gam)
 par(mfrow = c(2,2))
 gam.check(FIT_public_hoverflies_gamm_3$gam, type = "deviance")
 
-plot.gam(FIT_public_hoverflies_gamm_3$gam, all.terms = TRUE, pages = 1)
+png("./Plots/FIT_public_hoverflies_smoothers.png", 
+    width = 185, height = 150, unit = "mm", res = 300)
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_public_hoverflies_gamm_3$gam,  
+         shift = FIT_public_allInsects_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Hoverfly count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+dev.off()
 
 
 hoverflies_gamm_viz <- getViz(FIT_public_hoverflies_gamm_3$gam)
-
-
-hoverflies_smoother_En <- plot(sm(hoverflies_gamm_viz, 1))
-hoverflies_smoother_Sc <- plot(sm(hoverflies_gamm_viz, 2))
-hoverflies_smoother_Wa <- plot(sm(hoverflies_gamm_viz, 3))
 
 hoverflies_flower_class <- plot(pterm(all_insects_gamm_viz, 1))
 hoverflies_flower_count <- plot(pterm(all_insects_gamm_viz, 2))
 hoverflies_flower_context <- plot(pterm(all_insects_gamm_viz, 3))
 
 
-England <- hoverflies_smoother_En + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("England") +
-  theme_classic()
-
-
-Scotland <- hoverflies_smoother_Sc + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Scotland") +
-  theme_classic()
-
-Wales <- hoverflies_smoother_Wa + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Wales") +
-  theme_classic()
-
-gridPrint(England, Scotland, Wales, ncol = 3)
-
 
 Flower_class <- hoverflies_flower_class + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower type") +
   ylab("Effect on hoverfly count") +
   scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
   theme_classic()
 
+png("./Plots/FIT_public_hoverflies_flowerClass.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_class
+dev.off()
+
+
 Flower_count <- hoverflies_flower_count + 
   l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
   l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
   xlab("Floral unit count") +
   ylab("Effect on hoverfly count") +
   theme_classic()
 
+png("./Plots/FIT_public_hoverflies_flowerCount.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_count
+dev.off()
+
+
 Flower_context <- hoverflies_flower_context + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower context") +
   ylab("Effect on hoverfly count") +
@@ -635,531 +536,21 @@ Flower_context <- hoverflies_flower_context +
                               "Growing in a larger patch of the same flower",
                               "Growing in a larger patch of many different flowers"), 
                    labels = c("Isolated", 
-                              "Large patch  (same flower)", 
-                              "Large patch (may flowers)")) +
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
   theme_classic()
 
+png("./Plots/FIT_public_hoverflies_flowerContext.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_context
+dev.off()
+
+
+png("./Plots/FIT_public_hoverflies_parametric.png", 
+    width = 235, height = 80, unit = "mm", res = 300)
 gridPrint(Flower_class, Flower_count, Flower_context,ncol = 3)
+dev.off()
 
-
-
-# ## Bumblebees ----
-# 
-# ## Date exploration
-# 
-# Bumbleb_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = bumblebees)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# Bumbleb_JulDate_by_country
-# 
-# Bumbleb_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = bumblebees)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# Bumbleb_abund_by_wind
-# 
-# Bumbleb_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = bumblebees)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# Bumbleb_abund_by_flower
-# 
-# Bumbleb_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = bumblebees)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# Bumbleb_abund_by_context
-# 
-# ## GAMM for bumblebees ----
-# 
-# FIT_public_Bumbleb_gamm_1 <- gamm4(bumblebees ~ s(JulDate, by = country) + flower_class +
-#                                      floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                    family = poisson, random = ~(1|country/site_1km), 
-#                                    data = FIT_public_2018_GB)
-# 
-# FIT_public_Bumbleb_gamm_1$mer
-# summary(FIT_public_Bumbleb_gamm_1$gam)
-# 
-# plot(FIT_public_Bumbleb_gamm_1$gam, pages = 1)
-# 
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_Bumbleb_gamm_1$gam, type = "deviance")
-# 
-# 
-# FIT_public_Bumbleb_gamm_2 <- gamm4(bumblebees ~ s(JulDate) + flower_class +
-#                                      floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                    family = poisson, random = ~(1|country/site_1km), 
-#                                    data = FIT_public_2018_GB)
-# 
-# FIT_public_Bumbleb_gamm_2$mer
-# summary(FIT_public_Bumbleb_gamm_2$gam)
-# 
-# plot(FIT_public_Bumbleb_gamm_2$gam, pages = 1)
-# 
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_Bumbleb_gamm_2$gam, type = "deviance")
-# 
-# plot.gam(FIT_public_Bumbleb_gamm_2$gam, all.terms = TRUE)
-# 
-# ## Honeybees ----
-# 
-# honeyb_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = honeybees)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# honeyb_JulDate_by_country
-# 
-# honeyb_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = honeybees)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# honeyb_abund_by_wind
-# 
-# honeyb_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = honeybees)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# honeyb_abund_by_flower
-# 
-# honeyb_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = honeybees)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# honeyb_abund_by_context
-# 
-# ## GAMM for honeybees ----
-# 
-# FIT_public_honeyb_gamm_1 <- gamm4(honeybees ~ s(JulDate, by = country) + flower_class +
-#                                     floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                   family = poisson, random = ~(1|country/site_1km), 
-#                                   data = FIT_public_2018_GB)
-# 
-# FIT_public_honeyb_gamm_1$mer
-# summary(FIT_public_honeyb_gamm_1$gam)
-# 
-# plot(FIT_public_honeyb_gamm_1$gam, pages = 1)
-# 
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_honeyb_gamm_1$gam, type = "deviance")
-# 
-# # Clearly too many 0s!!!
-# 
-# FIT_public_honeyb_gam_2 <- gam(honeybees ~ s(JulDate, by = country) + flower_new +
-#                                  floral_unit_count + flower_context + wind_speed,
-#                                family = ziP(), 
-#                                data = FIT_public_2018_GB)
-# 
-# #FIT_public_honeyb_gamm_2$mer
-# #summary(FIT_public_honeyb_gamm_2$gam)
-# 
-# plot(FIT_public_honeyb_gam_2, pages = 1)
-# 
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_honeyb_gam_2, type = "deviance")
-# 
-# plot.gam(FIT_public_honeyb_gam_2, all.terms = TRUE)
-# 
-# # this looks a bit better but we don't have the random effect
-# # I couldn't find a way to fit a zero inflated mixed effects gam
-# 
-# ## Solitary bees ----
-# 
-# solib_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = solitary_bees)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# solib_JulDate_by_country
-# 
-# solib_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = solitary_bees)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# solib_abund_by_wind
-# 
-# solib_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = solitary_bees)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# solib_abund_by_flower
-# 
-# solib_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = solitary_bees)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# solib_abund_by_context
-# 
-# ## GAMM for solibees ----
-# 
-# FIT_public_solib_gamm_1 <- gamm4(solitary_bees ~ s(JulDate, by = country) + flower_class +
-#                                    floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                  family = poisson, random = ~(1|country/site_1km), 
-#                                  data = FIT_public_2018_GB)
-# 
-# FIT_public_solib_gamm_1$mer
-# summary(FIT_public_solib_gamm_1$gam)
-# 
-# plot(FIT_public_solib_gamm_1$gam, pages = 1)
-# 
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_solib_gamm_1$gam, type = "deviance")
-# 
-# # Clearly too many 0s!!!
-# FIT_public_solib_gam <- gam(solitary_bees ~ s(JulDate, by = country) + flower_class +
-#                               floral_unit_count + flower_context + wind_speed + habitat_class,
-#                             family = ziP(), data = FIT_public_2018_GB)
-# 
-# summary(FIT_public_solib_gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_solib_gam, type = "deviance")
-# 
-# 
-# 
-# # scary warning!
-# 
-# ## Wasps
-# 
-# 
-# wasps_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = wasps)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# wasps_JulDate_by_country
-# 
-# wasps_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = wasps)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# wasps_abund_by_wind
-# 
-# wasps_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = wasps)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# wasps_abund_by_flower
-# 
-# wasps_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = wasps)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# wasps_abund_by_context
-# 
-# ## GAMM for wasps ----
-# 
-# FIT_public_wasps_gamm <- gamm4(wasps ~ s(JulDate, by = country) + flower_class +
-#                                  floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                family = poisson, random = ~(1|country/site_1km), 
-#                                data = FIT_public_2018_GB)
-# 
-# FIT_public_wasps_gamm$mer
-# summary(FIT_public_wasps_gamm$gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_wasps_gamm$gam, type = "deviance")
-# 
-# plot.gam(FIT_public_wasps_gamm$gam, all.terms = TRUE)
-# 
-# # Clearly too many 0s!!!
-# 
-# FIT_public_wasps_gam <- gam(wasps ~ s(JulDate, by = country) + flower_class +
-#                               floral_unit_count + flower_context + wind_speed + habitat_class,
-#                             family = ziP(), data = FIT_public_2018_GB)
-# summary(FIT_public_wasps_gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_wasps_gam, type = "deviance")
-# 
-# 
-# # scary warning again!
-# 
-# 
-# ## Flies ----
-# 
-# other_flies_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = other_flies)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# other_flies_JulDate_by_country
-# 
-# other_flies_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = other_flies)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# other_flies_abund_by_wind
-# 
-# other_flies_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = other_flies)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# other_flies_abund_by_flower
-# 
-# other_flies_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = other_flies)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# other_flies_abund_by_context
-# 
-# ## GAMM for other_flies ----
-# 
-# FIT_public_other_flies_gamm <- gamm4(other_flies ~ s(JulDate, by = country) + flower_class +
-#                                        floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                      family = poisson, random = ~(1|country/site_1km), 
-#                                      data = FIT_public_2018_GB)
-# 
-# FIT_public_other_flies_gamm$mer
-# summary(FIT_public_other_flies_gamm$gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_other_flies_gamm$gam, type = "deviance")
-# 
-# plot.gam(FIT_public_other_flies_gamm$gam, all.terms = TRUE)
-# 
-# # convergence warning!
-# 
-# ## Butterflies and moths
-# 
-# 
-# butterflies_moths_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = butterflies_moths)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# butterflies_moths_JulDate_by_country
-# 
-# butterflies_moths_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = butterflies_moths)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# butterflies_moths_abund_by_wind
-# 
-# butterflies_moths_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = butterflies_moths)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# butterflies_moths_abund_by_flower
-# 
-# butterflies_moths_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = butterflies_moths)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# butterflies_moths_abund_by_context
-# 
-# ## GAMM for butterflies_moths ----
-# 
-# 
-# FIT_public_butterflies_moths_gamm <- gamm4(butterflies_moths ~ s(JulDate, by = country) + flower_class +
-#                                              floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                            family = poisson, random = ~(1|country/site_1km), 
-#                                            data = FIT_public_2018_GB)
-# 
-# FIT_public_butterflies_moths_gamm$mer
-# summary(FIT_public_butterflies_moths_gamm$gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_butterflies_moths_gamm$gam, type = "deviance")
-# 
-# plot.gam(FIT_public_butterflies_moths_gamm$gam, all.terms = TRUE)
-# 
-# 
-# ## Beetles
-# 
-# beetles_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = beetles)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# beetles_JulDate_by_country
-# 
-# beetles_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = beetles)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# beetles_abund_by_wind
-# 
-# beetles_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = beetles)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# beetles_abund_by_flower
-# 
-# beetles_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = beetles)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# beetles_abund_by_context
-# 
-# ## GAMM for beetles ----
-# 
-# FIT_public_beetles_gamm <- gamm4(beetles ~ s(JulDate, by = country) + flower_class +
-#                                    floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                  family = poisson, random = ~(1|country/site_1km), 
-#                                  data = FIT_public_2018_GB)
-# 
-# FIT_public_beetles_gamm$mer
-# summary(FIT_public_beetles_gamm$gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_beetles_gamm$gam, type = "deviance")
-# 
-# plot.gam(FIT_public_beetles_gamm$gam, all.terms = TRUE)
-# 
-# ## Small insects
-# 
-# insects_small_JulDate_by_country <- ggplot(data = FIT_public_2018_GB, aes(x = JulDate, y = insects_small)) +
-#   geom_point(color = "goldenrod") +
-#   geom_smooth(color = "darkblue") +
-#   facet_wrap(~country) +
-#   xlab("Julian date") +
-#   ylab("All insects abundance") +
-#   theme_bw()
-# 
-# insects_small_JulDate_by_country
-# 
-# insects_small_abund_by_wind <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = wind_speed, y = insects_small)) +
-#   xlab("Wind speed") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# insects_small_abund_by_wind
-# 
-# insects_small_abund_by_flower <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_new, y = insects_small)) +
-#   xlab("Flower type") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme_bw()
-# 
-# insects_small_abund_by_flower
-# 
-# insects_small_abund_by_context <- ggplot(data = FIT_public_2018_GB) +
-#   geom_boxplot(aes(x = flower_context, y = insects_small)) +
-#   xlab("Flower context") +
-#   ylab("All insects abundance") +
-#   facet_wrap(~country) +
-#   theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-#         panel.background = element_blank())
-# 
-# insects_small_abund_by_context
-# 
-# ## GAMM for insects_small ----
-# 
-# FIT_public_insects_small_gamm <- gamm4(insects_small ~ s(JulDate, by = country) + flower_class +
-#                                          floral_unit_count + flower_context + wind_speed + habitat_class,
-#                                        family = poisson, random = ~(1|country/site_1km), 
-#                                        data = FIT_public_2018_GB)
-# 
-# FIT_public_insects_small_gamm$mer
-# summary(FIT_public_insects_small_gamm$gam)
-# 
-# par(mfrow = c(2,2))
-# gam.check(FIT_public_insects_small_gamm$gam, type = "deviance")
-# 
-# plot.gam(FIT_public_insects_small_gamm$gam, all.terms = TRUE)
-# 
 
 
 ## 1 Km FIT counts ----
@@ -1266,79 +657,50 @@ FIT_1Km$year <- as.factor(FIT_1Km$year)
 
 # ## Data exploration ----
 
-JulDate_by_country <- ggplot(data = FIT_1Km, aes(x = JulDate, y = all_insects_total)) +
-  geom_point(color = "goldenrod") +
-  geom_smooth(color = "darkblue") +
-  facet_wrap(~country + year) +
-  xlab("Julian date") +
-  ylab("All insects abundance") +
-  theme_bw()
-
-JulDate_by_country
-
-abund_by_wind <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = wind_speed, y = all_insects_total)) +
-  xlab("Wind speed") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-abund_by_wind
-
-abund_by_flower <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = flower_new, y = all_insects_total)) +
-  xlab("Flower type") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-abund_by_flower
-
-abund_by_context <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = flower_context, y = all_insects_total)) +
-  xlab("Flower context") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-abund_by_context
-
 ## GAMM for all insects ----
 
-FIT_1Km_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
-                        floral_unit_count + flower_context + wind_speed + 
-                        sunshine + habitat_class + country + year, 
-                        family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
+FIT_1Km_allInsects_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
+                                    floral_unit_count + flower_context + wind_speed + 
+                                    sunshine + habitat_class + country + year, 
+                                    family = poisson, random = ~(1|site_1km), data = FIT_1Km)
 
 
-FIT_1Km_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
-                        floral_unit_count + flower_context + wind_speed + 
-                        sunshine + habitat_class + country + year, 
-                        family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
-
-AIC(FIT_1Km_gamm_1$mer, FIT_1Km_gamm_2$mer)
+FIT_1Km_allInsects_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
+                                    floral_unit_count + flower_context + wind_speed + 
+                                    sunshine + habitat_class + country + year, 
+                                    family = poisson, random = ~(1|site_1km), data = FIT_1Km)
 
 
-anova(FIT_1Km_gamm_1$gam)
+AIC(FIT_1Km_allInsects_gamm_1$mer, FIT_1Km_allInsects_gamm_2$mer)
 
 
-FIT_1Km_gamm_1$mer
-summary(FIT_1Km_gamm_1$gam)
+anova(FIT_1Km_allInsects_gamm_1$gam)
+
+
+FIT_1Km_allInsects_gamm_1$mer
+summary(FIT_1Km_allInsects_gamm_1$gam)
 
 
 par(mfrow = c(2,2))
-gam.check(FIT_1Km_gamm_1$gam, type = "deviance")
+gam.check(FIT_1Km_allInsects_gamm_1$gam, type = "deviance")
 
-plot.gam(FIT_1Km_gamm_1$gam, all.terms = TRUE, pages = 1)
+png("./Plots/FIT_1Km_allInsects_smoothers.png", 
+    width = 190, height = 150, unit = "mm", res = 300)
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_1Km_allInsects_gamm_1$gam,  
+         shift = FIT_1Km_allInsects_gamm_1$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Total insect count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+dev.off()
 
-all_insects_1km_gamm_viz <- getViz(FIT_1Km_gamm_1$gam)
+
+all_insects_1km_gamm_viz <- getViz(FIT_1Km_allInsects_gamm_1$gam)
 
 
-all_insects_1km_smoother_En <- plot(sm(all_insects_1km_gamm_viz, 1))
-all_insects_1km_smoother_Sc <- plot(sm(all_insects_1km_gamm_viz, 2))
-all_insects_1km_smoother_Wa <- plot(sm(all_insects_1km_gamm_viz, 3))
 
 all_insects_1km_flower_class <- plot(pterm(all_insects_1km_gamm_viz, 1))
 all_insects_1km_flower_count <- plot(pterm(all_insects_1km_gamm_viz, 2))
@@ -1349,65 +711,40 @@ all_insects_1km_sunshine <- plot(pterm(all_insects_1km_gamm_viz, 5))
 
 all_insects_1km_habitat <- plot(pterm(all_insects_1km_gamm_viz, 6))
 
-all_insects_1km_country <- plot(pterm(all_insects_1km_gamm_viz, 7))
-
 all_insects_1km_year <- plot(pterm(all_insects_1km_gamm_viz, 8))
-
-England <- all_insects_1km_smoother_En + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("England") +
-  theme_classic()
-
-
-Scotland <- all_insects_1km_smoother_Sc + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Scotland") +
-  theme_classic()
-
-Wales <- all_insects_1km_smoother_Wa + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Wales") +
-  theme_classic()
-
-gridPrint(England, Scotland, Wales, ncol = 3)
 
 
 Flower_class <- all_insects_1km_flower_class + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower type") +
   ylab("Effect on total insect count") +
   scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
   theme_classic()
 
+png("./Plots/FIT_1Km_allInsects_flowerClass.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_class
+dev.off()
+
+
 Flower_count <- all_insects_1km_flower_count + 
   l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
   l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
   xlab("Floral unit count") +
   ylab("Effect on total insect count") +
   theme_classic()
 
+png("./Plots/FIT_1Km_allInsects_flowerCount.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_count
+dev.off()
+
+
 Flower_context <- all_insects_1km_flower_context + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower context") +
   ylab("Effect on total insect count") +
@@ -1415,13 +752,19 @@ Flower_context <- all_insects_1km_flower_context +
                               "Growing in a larger patch of the same flower",
                               "Growing in a larger patch of many different flowers"), 
                    labels = c("Isolated", 
-                              "Same flower", 
-                              "Different flowers")) +
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
   theme_classic()
+
+png("./Plots/FIT_1Km_allInsects_flowerContext.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_context
+dev.off()
+
 
 Wind <- all_insects_1km_wind + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Wind speed during count") +
   ylab("Effect on total insect count") +
@@ -1433,24 +776,34 @@ Wind <- all_insects_1km_wind +
                               "High")) +
   theme_classic()
 
+png("./Plots/FIT_1Km_allInsects_Wind.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Wind
+dev.off()
 
 Sunshine <- all_insects_1km_sunshine + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Sunshine during count") +
   ylab("Effect on total insect count") +
   scale_x_discrete(breaks = c("Entirely in sunshine", 
                               "Partly in sun and partly shaded",
                               "Entirely shaded"), 
-                   labels = c("Sunny", 
+                   labels = c("In sunshine", 
                               "Partly", 
                               "Shaded")) +
   theme_classic()
 
+png("./Plots/FIT_1Km_allInsects_Sunshine.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Sunshine
+dev.off()
+
+
 Habitat <- all_insects_1km_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on total insect count") +
@@ -1460,25 +813,32 @@ Habitat <- all_insects_1km_habitat +
                               "Urban")) +
   theme_classic()
 
-Country <- all_insects_1km_country + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
-  l_rug(alpha = 0.3) +
-  xlab("Country") +
-  ylab("Effect on total insect count") +
-  theme_classic()
+png("./Plots/FIT_1Km_allInsects_Habitat.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Habitat
+dev.off()
+
+
 
 Year <- all_insects_1km_year + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Year") +
   ylab("Effect on total insect count") +
   theme_classic()
 
-gridPrint(Flower_class, Flower_count, Flower_context,
-          Wind, Sunshine, Habitat, Country, Year, ncol = 3)
+png("./Plots/FIT_1Km_allInsects_Year.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Year
+dev.off()
 
+
+png("./Plots/FIT_1Km_allInsects_parametric.png", 
+    width = 180, height = 200, unit = "mm", res = 300)
+gridPrint(Flower_class, Flower_count, Flower_context,
+          Wind, Sunshine, Habitat, Year, ncol = 2, top = "")
+dev.off()
 
 
 ## All bees ----
@@ -1489,56 +849,19 @@ FIT_1Km <- FIT_1Km %>%
   mutate(all_bees = sum(bumblebees, honeybees, solitary_bees))
 
 
-bee_JulDate_by_country <- ggplot(data = FIT_1Km, aes(x = JulDate, y = all_bees)) +
-  geom_point(color = "goldenrod") +
-  geom_smooth(color = "darkblue") +
-  facet_wrap(~country) +
-  xlab("Julian date") +
-  ylab("All insects abundance") +
-  theme_bw()
-
-bee_JulDate_by_country
-
-bee_abund_by_wind <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = wind_speed, y = all_bees)) +
-  xlab("Wind speed") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-bee_abund_by_wind
-
-bee_abund_by_flower <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = flower_new, y = all_bees)) +
-  xlab("Flower type") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-bee_abund_by_flower
-
-bee_abund_by_context <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = flower_context, y = all_bees)) +
-  xlab("Flower context") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-bee_abund_by_context
-
 ## GAMM for all_bees ----
 
 FIT_1Km_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
                             floral_unit_count + flower_context + wind_speed + 
                             sunshine + habitat_class + country + year, 
-                            family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
+                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
 
 
 FIT_1Km_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_class +
                               floral_unit_count + flower_context + wind_speed + 
                               sunshine + habitat_class + country + year, 
-                            family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
+                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+
 
 AIC(FIT_1Km_bee_gamm_1$mer, FIT_1Km_bee_gamm_2$mer)
 
@@ -1546,7 +869,7 @@ anova(FIT_1Km_bee_gamm_1$gam)
 
 FIT_1Km_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
                             flower_context + wind_speed + habitat_class + country, 
-                            family = poisson, random = ~(1|country/site_1km), data = FIT_1Km)
+                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
 
 
 
@@ -1558,15 +881,22 @@ summary(FIT_1Km_bee_gamm_3$gam)
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_bee_gamm_3$gam, type = "deviance")
 
-plot.gam(FIT_1Km_bee_gamm_3$gam, all.terms = T, pages = 1)
+png("./Plots/FIT_1Km_bees_smoothers.png", 
+    width = 190, height = 150, unit = "mm", res = 300)
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_1Km_bee_gamm_3$gam,  
+         shift = FIT_1Km_bee_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Bee count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+dev.off()
 
 
 bees_1km_gamm_viz <- getViz(FIT_1Km_bee_gamm_3$gam)
 
-
-bees_1km_smoother_En <- plot(sm(bees_1km_gamm_viz, 1))
-bees_1km_smoother_Sc <- plot(sm(bees_1km_gamm_viz, 2))
-bees_1km_smoother_Wa <- plot(sm(bees_1km_gamm_viz, 3))
 
 bees_1km_flower_class <- plot(pterm(bees_1km_gamm_viz, 1))
 bees_1km_flower_context <- plot(pterm(bees_1km_gamm_viz, 2))
@@ -1575,41 +905,7 @@ bees_1km_wind <- plot(pterm(bees_1km_gamm_viz, 3))
 
 bees_1km_habitat <- plot(pterm(bees_1km_gamm_viz, 4))
 
-bees_1km_country <- plot(pterm(bees_1km_gamm_viz, 5))
 
-
-England <- bees_1km_smoother_En + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("England") +
-  theme_classic()
-
-
-Scotland <- bees_1km_smoother_Sc + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Scotland") +
-  theme_classic()
-
-Wales <- bees_1km_smoother_Wa + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Wales") +
-  theme_classic()
-
-gridPrint(England, Scotland, Wales, ncol = 3)
 
 
 Flower_class <- bees_1km_flower_class + 
@@ -1621,18 +917,14 @@ Flower_class <- bees_1km_flower_class +
   scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
   theme_classic()
 
-Flower_count <- bees_1km_flower_count + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Floral unit count") +
-  ylab("Effect on bee count") +
-  theme_classic()
+png("./Plots/FIT_1Km_bees_flowerClass.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_class
+dev.off()
 
 Flower_context <- bees_1km_flower_context + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower context") +
   ylab("Effect on bee count") +
@@ -1640,13 +932,19 @@ Flower_context <- bees_1km_flower_context +
                               "Growing in a larger patch of the same flower",
                               "Growing in a larger patch of many different flowers"), 
                    labels = c("Isolated", 
-                              "Same flower", 
-                              "Different flowers")) +
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
   theme_classic()
+
+png("./Plots/FIT_1Km_bees_flowerContext.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_context
+dev.off()
+
 
 Wind <- bees_1km_wind + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Wind speed during count") +
   ylab("Effect on bee count") +
@@ -1658,89 +956,55 @@ Wind <- bees_1km_wind +
                               "High")) +
   theme_classic()
 
+png("./Plots/FIT_1Km_bees_wind.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Wind
+dev.off()
+
 
 
 Habitat <- all_insects_1km_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
-  ylab("Effect on total insect count") +
+  ylab("Effect on bee count") +
   scale_x_discrete(breaks = c("A", "N", "U"), 
                    labels = c("Agricultural", 
                               "Semi-natural", 
                               "Urban")) +
   theme_classic()
 
-Country <- bees_1km_country + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
-  l_rug(alpha = 0.3) +
-  xlab("Country") +
-  ylab("Effect on bee count") +
-  theme_classic()
+png("./Plots/FIT_1Km_bees_Habitat.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Habitat
+dev.off()
 
-
-gridPrint(Flower_class, Flower_count, Flower_context,
-          Wind, Habitat, Country, ncol = 3)
+png("./Plots/FIT_1Km_bees_parametric.png", 
+    width = 180, height = 180, unit = "mm", res = 300)
+gridPrint(Flower_class, Flower_context,
+          Wind, Habitat, ncol = 2, top = "")
+dev.off()
 
 
 
 ## Hoverflies ----
-
-hoverflies_JulDate_by_country <- ggplot(data = FIT_1Km, aes(x = JulDate, y = hoverflies)) +
-  geom_point(color = "goldenrod") +
-  geom_smooth(color = "darkblue") +
-  facet_wrap(~country) +
-  xlab("Julian date") +
-  ylab("All insects abundance") +
-  theme_bw()
-
-hoverflies_JulDate_by_country
-
-hoverflies_abund_by_wind <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = wind_speed, y = hoverflies)) +
-  xlab("Wind speed") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-hoverflies_abund_by_wind
-
-hoverflies_abund_by_flower <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = flower_class, y = hoverflies)) +
-  xlab("Flower type") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme_bw()
-
-hoverflies_abund_by_flower
-
-hoverflies_abund_by_context <- ggplot(data = FIT_1Km) +
-  geom_boxplot(aes(x = flower_context, y = hoverflies)) +
-  xlab("Flower context") +
-  ylab("All insects abundance") +
-  facet_wrap(~country) +
-  theme(axis.text.x=element_text(angle=30, vjust=1, hjust=1),
-        panel.background = element_blank())
-
-hoverflies_abund_by_context
 
 ## GAMM for hoverflies ----
 
 FIT_1Km_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
                                  floral_unit_count + flower_context + wind_speed + 
                                  sunshine + habitat_class + country + year, 
-                                 family = poisson, random = ~(1|country/site_1km), 
+                                 family = poisson, random = ~(1|site_1km), 
                                  data = FIT_1Km)
 
 
 FIT_1Km_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
                                    floral_unit_count + flower_context + wind_speed + 
                                    sunshine + habitat_class + country + year, 
-                                   family = poisson, random = ~(1|country/site_1km), 
+                                   family = poisson, random = ~(1|site_1km), 
                                    data = FIT_1Km)
+
 
 AIC(FIT_1Km_hoverflies_gamm$mer, FIT_1Km_hoverflies_gamm_2$mer)
 
@@ -1748,7 +1012,7 @@ anova(FIT_1Km_hoverflies_gamm$gam)
 
 FIT_1Km_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +  
                                      sunshine + habitat_class + country + year, 
-                                   family = poisson, random = ~(1|country/site_1km), 
+                                   family = poisson, random = ~(1|site_1km), 
                                    data = FIT_1Km)
 
 
@@ -1758,14 +1022,21 @@ summary(FIT_1Km_hoverflies_gamm_3$gam)
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_hoverflies_gamm_3$gam, type = "deviance")
 
-plot.gam(FIT_1Km_hoverflies_gamm_3$gam, all.terms = TRUE, pages = 1)
+png("./Plots/FIT_1Km_hoverflies_smoothers.png", 
+    width = 190, height = 150, unit = "mm", res = 300)
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_1Km_hoverflies_gamm_3$gam,  
+         shift = FIT_1Km_hoverflies_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Hoverfly count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2, ylim = c(0,50))
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+dev.off()
 
 hover_1km_gamm_viz <- getViz(FIT_1Km_hoverflies_gamm_3$gam)
 
-
-hover_1km_smoother_En <- plot(sm(hover_1km_gamm_viz, 1))
-hover_1km_smoother_Sc <- plot(sm(hover_1km_gamm_viz, 2))
-hover_1km_smoother_Wa <- plot(sm(hover_1km_gamm_viz, 3))
 
 hover_1km_flower_class <- plot(pterm(hover_1km_gamm_viz, 1))
 
@@ -1773,72 +1044,47 @@ hover_1km_sunshine <- plot(pterm(hover_1km_gamm_viz, 2))
 
 hover_1km_habitat <- plot(pterm(hover_1km_gamm_viz, 3))
 
-hover_1km_country <- plot(pterm(hover_1km_gamm_viz, 4))
-
 hover_1km_year <- plot(pterm(hover_1km_gamm_viz, 5))
-
-England <- hover_1km_smoother_En + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("England") +
-  theme_classic()
-
-
-Scotland <- hover_1km_smoother_Sc + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Scotland") +
-  theme_classic()
-
-Wales <- hover_1km_smoother_Wa + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-  l_ciLine(mul = 5, colour = "darkgoldenrod2", linetype = 2, size = 0.5) + 
-  l_points(shape = 19, size = 1, alpha = 0.1) + 
-  xlab("Julian date") +
-  ylab("Seasonality") +
-  ggtitle("Wales") +
-  theme_classic()
-
-gridPrint(England, Scotland, Wales, ncol = 3)
 
 
 Flower_class <- hover_1km_flower_class + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Flower type") +
   ylab("Effect on hoverfly count") +
   scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
   theme_classic()
 
+png("./Plots/FIT_1Km_hoverflies_flowerClass.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_class
+dev.off()
 
 
 Sunshine <- hover_1km_sunshine + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Sunshine during count") +
   ylab("Effect on hoverfly count") +
   scale_x_discrete(breaks = c("Entirely in sunshine", 
                               "Partly in sun and partly shaded",
                               "Entirely shaded"), 
-                   labels = c("Sunny", 
+                   labels = c("In sunshine", 
                               "Partly", 
                               "Shaded")) +
   theme_classic()
 
+png("./Plots/FIT_1Km_hoverflies_sunshine.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Sunshine
+dev.off()
+
+
 Habitat <- hover_1km_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on hoverfly count") +
@@ -1848,63 +1094,30 @@ Habitat <- hover_1km_habitat +
                               "Urban")) +
   theme_classic()
 
-Country <- hover_1km_country + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
-  l_rug(alpha = 0.3) +
-  xlab("Country") +
-  ylab("Effect on hoverfly count") +
-  theme_classic()
+png("./Plots/FIT_1Km_hoverflies_habitat.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Habitat
+dev.off()
+
 
 Year <- hover_1km_year + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Year") +
   ylab("Effect on hoverfly count") +
   theme_classic()
 
-gridPrint(Flower_class, Sunshine, Habitat, 
-          Country, Year, ncol = 3)
+png("./Plots/FIT_1Km_hoverflies_year.png", 
+    width = 80, height = 80, unit = "mm", res = 300)
+Year
+dev.off()
 
 
+png("./Plots/FIT_1Km_hoverflies_parametric.png", 
+    width = 180, height = 180, unit = "mm", res = 300)
+gridPrint(Flower_class, Sunshine, 
+          Habitat, Year, ncol = 2, top = "")
+dev.off()
 
-# The models fit to the two datasets seem to return very similar results.
-# One effect seems to be consistently differen:
-# In public FIT counts urban habitat usually has the highest number of insects
-# while in the 1 Km FIT counts seminatural habitat is the habitat class with more insects.
-# It is possible this result is an artifact of the number of counts conducted 
-# in the different habitat classes in the two surveys.
 
-Public_FIT_habitat <- ggplot(data = FIT_public_2018_GB) +
-  geom_bar(aes(x = habitat_class), fill = "darkblue", show.legend=FALSE) +
-  xlab("Habitat type") +
-  ylab("Public FIT counts") #+
-  # theme(axis.title.x=element_text(size=4),  # don't display x and y axes labels, titles and tickmarks
-  #       axis.text.x=element_text(angle=50, vjust=1, hjust=1),
-  #       axis.title.y=element_text(size=4),
-  #       axis.ticks = element_line(size = 0.1),
-  #       text=element_text(size=4),
-  #       panel.background = element_blank())
-
-OneKm_FIT_habitat <- ggplot(data = FIT_1Km) +
-  geom_bar(aes(x = habitat_class, fill = year), position = "dodge", show.legend=TRUE) +
-  scale_fill_manual(values = c("darkgoldenrod1", "darkblue"), guide = guide_legend(title = "Year")) +
-  xlab("Habitat type") +
-  ylab("1Km FIT counts") #+
-  # theme(axis.title.x=element_text(size=4),  
-  #       axis.text.x=element_text(angle=50, vjust=1, hjust=1),
-  #       axis.title.y=element_text(size=4),
-  #       axis.ticks = element_line(size = 0.1),
-  #       text=element_text(size=4),
-  #       panel.background = element_blank(),
-  #       legend.text=element_text(size=4),
-  #       legend.key.size = unit(0.2, "cm"))
-
-source("../Descriptive Stats/multiplot.R")
-
-multiplot(Public_FIT_habitat, OneKm_FIT_habitat)
-
-# Indeed when plotting the number of counts conducted per habitat type,
-# most public FIT counts were conducted in urban habitat, while
-# most 1Km FIT counts were conducted in seminatural habitat.
