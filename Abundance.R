@@ -171,8 +171,9 @@ FIT_public_allInsects_gamm_3 <- gamm4(all_insects_total ~ s(JulDate, by = countr
 
 FIT_public_allInsects_gamm_3$mer
 # plot(ranef(FIT_public_gamm_1$mer))
+sink("./Plots/FIT_public_allInsects_summary.txt")
 summary(FIT_public_allInsects_gamm_3$gam)
-
+sink()
 
 par(mfrow = c(2,2))
 gam.check(FIT_public_allInsects_gamm_3$gam, type = "deviance")
@@ -333,8 +334,10 @@ par(mfrow = c(2,2))
 gam.check(FIT_public_bee_gamm_3$gam, type = "deviance")
 
 FIT_public_bee_gamm_3$mer
-summary(FIT_public_bee_gamm_3$gam)
 
+sink("./Plots/FIT_public_bees_summary.txt")
+summary(FIT_public_bee_gamm_3$gam)
+sink()
 
 
 png("./Plots/FIT_public_bees_smoother.png", 
@@ -471,7 +474,10 @@ FIT_public_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + fl
 
 
 FIT_public_hoverflies_gamm_3$mer
+
+sink("./Plots/FIT_public_hoverflies_summary.txt")
 summary(FIT_public_hoverflies_gamm_3$gam)
+sink()
 
 par(mfrow = c(2,2))
 gam.check(FIT_public_hoverflies_gamm_3$gam, type = "deviance")
@@ -678,8 +684,10 @@ anova(FIT_1Km_allInsects_gamm_1$gam)
 
 
 FIT_1Km_allInsects_gamm_1$mer
-summary(FIT_1Km_allInsects_gamm_1$gam)
 
+sink("./Plots/FIT_1Km_allInsects_summary.txt")
+summary(FIT_1Km_allInsects_gamm_1$gam)
+sink()
 
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_allInsects_gamm_1$gam, type = "deviance")
@@ -874,8 +882,10 @@ FIT_1Km_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
 
 
 FIT_1Km_bee_gamm_3$mer
-summary(FIT_1Km_bee_gamm_3$gam)
 
+sink("./Plots/FIT_1Km_bees_summary.txt")
+summary(FIT_1Km_bee_gamm_3$gam)
+sink()
 
 
 par(mfrow = c(2,2))
@@ -1017,7 +1027,10 @@ FIT_1Km_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flowe
 
 
 FIT_1Km_hoverflies_gamm_3$mer
+
+sink("./Plots/FIT_1Km_hoverflies_summary.txt")
 summary(FIT_1Km_hoverflies_gamm_3$gam)
+sink()
 
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_hoverflies_gamm_3$gam, type = "deviance")
