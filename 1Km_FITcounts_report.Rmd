@@ -1,0 +1,427 @@
+---
+title: "Analysis of 1 Km FIT counts - Insect abundance at group level"
+author: "Francesca Mancini"
+date: "12 April 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
+
+library(gamm4)
+library(ggplot2)
+library(dplyr)
+library(mgcViz)
+```
+
+The code in this document requires the following packages:
+
+```{r packages, evaluate = FALSE}
+library(gamm4)
+library(ggplot2)
+library(dplyr)
+library(mgcViz)
+
+```
+
+
+## Data 
+
+The file below contains the data from the 1 Km FIT counts that were processes using the code in the *1 Km FIT counts data manipulation report*.
+
+```{r data}
+FIT_1Km <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_1Km_processed.csv",
+                    header = TRUE)
+
+FIT_1Km$flower_context <- factor(FIT_1Km$flower_context,
+                                 ordered = T, levels = c("More or less isolated",
+                                                         "Growing in a larger patch of the same flower",
+                                                         "Growing in a larger patch of many different flowers"))
+FIT_1Km$wind_speed <- factor(FIT_1Km$wind_speed,
+                             ordered = T, levels = c("Leaves still/moving occasionally",
+                                                     "Leaves moving gently all the time",
+                                                     "Leaves moving strongly"))
+
+FIT_1Km$flower_class <- as.factor(FIT_1Km$flower_class)
+
+FIT_1Km$year <- as.factor(FIT_1Km$year)
+
+```
+
+
+
+## Analysis
+
+The code in this section of the document fits the same model to the different insect group counts.
+The model is a Generalised Additive Mixed Model, which includes a random effect for each site where the FIT count was conducted. The model includes a thin plate regression spline to describe the relationship between the number of insects counted and Julian date. Given the differences in the wheather between the three countries, we fit two models: one with a separate spline for each of the countries and one with only one smoother for all three countries. We then use AIC to compare the two and choose the best model (lowest AIC).
+
+The model tests a few parametric terms, specifically: the effect of the type of flower (open or closed), the number of floral units counted, the flower context (whether the areas was isolated or within an area with more flowers), the speed of the wind and sunshine during the count, the habitat type (whether it was urban, agricultural or semi-natural), the country and the year.
+
+Since the response variable is a count, we use a Poisson distribution with a log link function.
+
+
+##### All insects
+
+```{r GAMM_all_insects}
+
+FIT_1Km_allInsects_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + 
+                                    flower_class +
+                                    floral_unit_count + flower_context + wind_speed + 
+                                    sunshine + habitat_class + country + year, 
+                                    family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+
+
+FIT_1Km_allInsects_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
+                                    floral_unit_count + flower_context + wind_speed + 
+                                    sunshine + habitat_class + country + year, 
+                                    family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+
+
+AIC(FIT_1Km_allInsects_gamm_1$mer, FIT_1Km_allInsects_gamm_2$mer)
+
+
+anova(FIT_1Km_allInsects_gamm_1$gam)
+
+
+FIT_1Km_allInsects_gamm_1$mer
+summary(FIT_1Km_allInsects_gamm_1$gam)
+
+par(mfrow = c(2,2))
+gam.check(FIT_1Km_allInsects_gamm_1$gam, type = "deviance")
+
+
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_1Km_allInsects_gamm_1$gam,  
+         shift = FIT_1Km_allInsects_gamm_1$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Total insect count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+
+all_insects_1km_gamm_viz <- getViz(FIT_1Km_allInsects_gamm_1$gam)
+
+
+all_insects_1km_flower_class <- plot(pterm(all_insects_1km_gamm_viz, 1))
+all_insects_1km_flower_count <- plot(pterm(all_insects_1km_gamm_viz, 2))
+all_insects_1km_flower_context <- plot(pterm(all_insects_1km_gamm_viz, 3))
+
+all_insects_1km_wind <- plot(pterm(all_insects_1km_gamm_viz, 4))
+all_insects_1km_sunshine <- plot(pterm(all_insects_1km_gamm_viz, 5))
+
+all_insects_1km_habitat <- plot(pterm(all_insects_1km_gamm_viz, 6))
+
+all_insects_1km_year <- plot(pterm(all_insects_1km_gamm_viz, 8))
+
+
+Flower_class <- all_insects_1km_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+Flower_count <- all_insects_1km_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  xlab("Floral unit count") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+Flower_context <- all_insects_1km_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
+  theme_classic()
+
+Wind <- all_insects_1km_wind + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Wind speed during count") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+                              "Leaves moving gently all the time",
+                              "Leaves moving strongly"), 
+                   labels = c("Low", 
+                              "Medium", 
+                              "High")) +
+  theme_classic()
+
+
+Sunshine <- all_insects_1km_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Partly in sun and partly shaded",
+                              "Entirely shaded"), 
+                   labels = c("In sunshine", 
+                              "Partly", 
+                              "Shaded")) +
+  theme_classic()
+
+Habitat <- all_insects_1km_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Year <- all_insects_1km_year + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Year") +
+  ylab("Effect on total insect count") +
+  theme_classic()
+
+
+gridPrint(Flower_class, Flower_count, Flower_context,
+          Wind, Sunshine, Habitat, Year, ncol = 2, top = "")
+
+
+```
+
+### All bees
+
+```{r GAMMBees}
+
+# calculate the counts for all bees as a sum of all the different bee groups
+FIT_1Km <- FIT_1Km %>%
+  rowwise() %>%
+  mutate(all_bees = sum(bumblebees, honeybees, solitary_bees))
+
+FIT_1Km_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
+                            floral_unit_count + flower_context + wind_speed + 
+                            sunshine + habitat_class + country + year, 
+                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+
+
+FIT_1Km_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_class +
+                              floral_unit_count + flower_context + wind_speed + 
+                              sunshine + habitat_class + country + year, 
+                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+
+
+AIC(FIT_1Km_bee_gamm_1$mer, FIT_1Km_bee_gamm_2$mer)
+
+anova(FIT_1Km_bee_gamm_1$gam)
+
+FIT_1Km_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
+                            flower_context + wind_speed + habitat_class + country, 
+                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+
+
+
+FIT_1Km_bee_gamm_3$mer
+summary(FIT_1Km_bee_gamm_3$gam)
+
+
+
+par(mfrow = c(2,2))
+gam.check(FIT_1Km_bee_gamm_3$gam, type = "deviance")
+
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_1Km_bee_gamm_3$gam,  
+         shift = FIT_1Km_bee_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Bee count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+
+bees_1km_gamm_viz <- getViz(FIT_1Km_bee_gamm_3$gam)
+
+bees_1km_flower_class <- plot(pterm(bees_1km_gamm_viz, 1))
+bees_1km_flower_context <- plot(pterm(bees_1km_gamm_viz, 2))
+
+bees_1km_wind <- plot(pterm(bees_1km_gamm_viz, 3))
+
+bees_1km_habitat <- plot(pterm(bees_1km_gamm_viz, 4))
+
+
+
+Flower_class <- bees_1km_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+
+
+Flower_context <- bees_1km_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
+  theme_classic()
+
+Wind <- bees_1km_wind + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Wind speed during count") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+                              "Leaves moving gently all the time",
+                              "Leaves moving strongly"), 
+                   labels = c("Low", 
+                              "Medium", 
+                              "High")) +
+  theme_classic()
+
+
+Habitat <- all_insects_1km_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+
+
+gridPrint(Flower_class, Flower_context,
+          Wind, Habitat, ncol = 2, top = "")
+
+```
+
+### Hoverflies
+
+```{r GAMMHover}
+
+FIT_1Km_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
+                                 floral_unit_count + flower_context + wind_speed + 
+                                 sunshine + habitat_class + country + year, 
+                                 family = poisson, random = ~(1|site_1km), 
+                                 data = FIT_1Km)
+
+
+FIT_1Km_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
+                                   floral_unit_count + flower_context + wind_speed + 
+                                   sunshine + habitat_class + country + year, 
+                                   family = poisson, random = ~(1|site_1km), 
+                                   data = FIT_1Km)
+
+
+AIC(FIT_1Km_hoverflies_gamm$mer, FIT_1Km_hoverflies_gamm_2$mer)
+
+anova(FIT_1Km_hoverflies_gamm$gam)
+
+FIT_1Km_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +  
+                                     sunshine + habitat_class + country + year, 
+                                   family = poisson, random = ~(1|site_1km), 
+                                   data = FIT_1Km)
+
+
+FIT_1Km_hoverflies_gamm_3$mer
+summary(FIT_1Km_hoverflies_gamm_3$gam)
+
+par(mfrow = c(2,2))
+gam.check(FIT_1Km_hoverflies_gamm_3$gam, type = "deviance")
+
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_1Km_hoverflies_gamm_3$gam,  
+         shift = FIT_1Km_hoverflies_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Hoverfly count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2, ylim = c(0,50))
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+
+hover_1km_gamm_viz <- getViz(FIT_1Km_hoverflies_gamm_3$gam)
+
+hover_1km_flower_class <- plot(pterm(hover_1km_gamm_viz, 1))
+
+hover_1km_sunshine <- plot(pterm(hover_1km_gamm_viz, 2))
+
+hover_1km_habitat <- plot(pterm(hover_1km_gamm_viz, 3))
+
+hover_1km_year <- plot(pterm(hover_1km_gamm_viz, 5))
+
+
+Flower_class <- hover_1km_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+
+
+Sunshine <- hover_1km_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Partly in sun and partly shaded",
+                              "Entirely shaded"), 
+                   labels = c("In sunshine", 
+                              "Partly", 
+                              "Shaded")) +
+  theme_classic()
+
+Habitat <- hover_1km_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Year <- hover_1km_year + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Year") +
+  ylab("Effect on hoverfly count") +
+  theme_classic()
+
+
+gridPrint(Flower_class, Sunshine, 
+          Habitat, Year, ncol = 2, top = "")
+
+```

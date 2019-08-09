@@ -1,0 +1,195 @@
+---
+title: "Public FIT counts data manipulation report"
+author: "Francesca Mancini"
+date: "4 April 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+
+library(dplyr)
+library(BRCmap)
+library(tidyr)
+library(gamm4)
+library(ggplot2)
+library(openxlsx)
+```
+
+
+The code in this document requires the following packages:
+
+```{r packages, evaluate = FALSE}
+library(dplyr)
+library(BRCmap)
+library(tidyr)
+library(openxlsx)
+```
+
+
+## Data manipulations
+
+The files imported below are the dataset of public FIT counts and the two tables containing the new categorisation of target flowers and habitats.
+
+```{r importData}
+FIT_public <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\data outputs current versions\\tblEXPORT_PublicFITCount.csv", 
+                 header = T, stringsAsFactors = F)
+
+str(FIT_public)
+
+habitat_class <- read.xlsx("C:\\Users\\framan\\OneDrive - NERC\\PoMS\\ModelsB_Abundance\\FITcount_flower_habitat category_summary.xlsx",
+                           sheet = "habitat both")
+
+str(habitat_class)
+
+flower_class <- read.xlsx("C:\\Users\\framan\\OneDrive - NERC\\PoMS\\ModelsB_Abundance\\FITcount_flower_habitat category_summary.xlsx",
+                           sheet = "flowers both")
+
+str(flower_class)
+
+```
+
+I have slightly modified the habitat table by just repeating the *type* for all the rows. This was creating problems when merging the dataframes. 
+
+First, I am going to change the character strings in the columns `habitat` and `habitat_other_detail` to lower case letters only. This will avoid possible typos creating problems later.
+
+```{r typos}
+
+FIT_public$habitat <- tolower(FIT_public$habitat)
+FIT_public$habitat_other_detail <- tolower(FIT_public$habitat_other_detail)
+
+```
+
+I am going to do the same for the classification table, as well as changing the column names to something more `R` friendly and deleting duplicates.
+
+```{r tables}
+
+names(habitat_class)[3] <- "habitat_class"
+habitat_class$habitat <- tolower(habitat_class$habitat)
+habitat_class <- distinct(habitat_class, habitat, .keep_all = TRUE)
+
+names(flower_class)[2] <- "flower_class"
+flower_class <- distinct(flower_class)
+
+```
+
+There are lots of blanks in the insect count columns, which represent zero counts as opposed to missing information. So I am going to change all the `NA`s into 0.
+
+```{r turnNA}
+
+FIT_public <- FIT_public %>%
+  mutate(bumblebees = replace_na(bumblebees, 0),
+         honeybees = replace_na(honeybees, 0),
+         solitary_bees = replace_na(solitary_bees, 0),
+         wasps = replace_na(wasps, 0),
+         hoverflies = replace_na(hoverflies, 0),
+         other_flies = replace_na(other_flies, 0),
+         butterflies_moths = replace_na(butterflies_moths, 0),
+         beetles = replace_na(beetles, 0),
+         insects_small = replace_na(insects_small, 0),
+         insects_other = replace_na(insects_other, 0),
+         all_insects_total = replace_na(all_insects_total, 0))
+
+```
+
+The following code performs many operations at once. First it transforms the `date` column into a date format, so that it can be used (on the next line) to calculate Julian date and, on the follwoing line, year. Then the grid reference for the site where the count was conducted is converted to a precision of 1Km and then converted to numeric format. The variables `country`, `flower_context` and `wind_speed` are converted to ordered factors. I also created a new flower variable that indicates whether the flower on which the count was conducted was a target flower or not. Finally the code performs a series of left joins to merge the simplified classification for flower family and habitat. First I join the flower table with the FIT counts dataset using `target_flower_family` as the matching column; then I merge the habitat table with the dataset using the `habitat` column as a reference. Because the habitat table contains a new classification for both *main* and *other* habitat, I then perform another left join using the column `habitat_other_detail` as the matching column. This produces a column, `habitat_class.x` which has the new classification for all the main habitats and `NA` wherever habitat is `other`, and another column `habitat_class.y` containing `NA` for all the main habitats and the new classification for the observations where habitat is `other`. Then I create a final column `habitat_class`, which merges the last two together and I delete the columns we don't need.
+
+```{r datamanipulation}
+
+FIT_public <- FIT_public %>%
+  mutate(date = as.Date(date, format = "%d/%m/%Y %H:%M"),
+         JulDate = as.numeric(format(date, "%j")),
+         year = format(date,"%Y"),
+         site_1km = as.factor(reformat_gr(FIT_public$sample_gridref, prec_out = 1000)),
+         site_1km_num = as.numeric(site_1km),
+         country = as.factor(country),
+         flower_new = as.factor(case_when(
+           target_flower_corrected == "Other - please describe below" ~ "Other",
+           TRUE ~ "Target")),
+         flower_context = replace(flower_context, which(flower_context == "Not recorded"), NA),
+         flower_context = factor(flower_context, order = TRUE,levels = c(
+           "More or less isolated", 
+           "Growing in a larger patch of the same flower", 
+           "Growing in a larger patch of many different flowers")),
+         wind_speed = factor(wind_speed, order = TRUE, levels = c(
+           "Leaves still/moving occasionally",
+           "Leaves moving gently all the time",
+           "Leaves moving strongly"))) %>%
+  left_join(flower_class, by = "target_flower_family") %>%
+  left_join(habitat_class, by = "habitat") %>%
+  left_join(habitat_class, by = c("habitat_other_detail" = "habitat")) %>%
+  mutate(habitat_class = coalesce(habitat_class.x, habitat_class.y)) %>%
+  select(-one_of(c("habitat_class.x", "habitat_class.y", "type.x", "type.y")))
+
+str(FIT_public)
+
+```
+
+The following code performs some tests to make sure that the data manipulations have worked as expected and all the observations have been assigned the new classification.
+
+```{r testsSite}
+
+summary(FIT_public$site_1km)
+
+FIT_public[which(is.na(FIT_public$site_1km)), "sample_gridref"]
+
+FIT_public <- FIT_public[!is.na(FIT_public$site_1km),]
+
+```
+
+It looks like 13 of the site grid references could not be converted to a 1Km precision because they do not have a grid reference in the original column. I am excluding these pobservations from the dataset for now.
+
+```{r testsHabitat}
+
+summary(as.factor(FIT_public$habitat_class))
+
+```
+
+All the habitats have been reclassified as either `A` (agricultural), `U` (urban) or `N` (semi-natural).
+
+```{r testsFlower}
+
+summary(as.factor(FIT_public$flower_class))
+
+```
+
+The merging has failed to classify two of the observations, resulting in `NA` values. We can check what has gone wrong here by extracting these observations from the original dataset.
+
+```{r testsFlower2}
+
+FIT_public[which(is.na(FIT_public$flower_class)), "target_flower_family"]
+
+```
+
+One of these observations is missing the `target_flower_family` information completely, while the other seems to be a typo in the spelling of *Onagraceae*. For now I am ignoring these two observations.
+
+In 2017, not many public FIT counts were conducted, so we subset the dataset to only keep records from 2018.
+
+```{r yearSubset}
+
+FIT_public_2018 <- subset(FIT_public, year == "2018")
+
+```
+
+How many FIT counts per country?
+
+```{r countryTable}
+
+table(FIT_public_2018$country)
+
+FIT_public_2018_GB <- subset(FIT_public_2018, country %in% c("England", "Wales", "Scotland"))
+
+```
+
+There are very few FIT counts from Northern Ireland and the Isle of Man, which might make it difficult to estimate random effects, so I am excluding these two countries from the analysis for now.
+
+The last data manipulation is to transform the new habitat and flower columns into factors.
+
+```{r datamanipulationsLast}
+
+FIT_public_2018_GB$flower_class <- as.factor(FIT_public_2018_GB$flower_class)
+FIT_public_2018_GB$habitat_class <- as.factor(FIT_public_2018_GB$habitat_class)
+
+```
+
+

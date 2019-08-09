@@ -1,0 +1,473 @@
+---
+title: "Analysis of Public FIT counts - Insect abundance at group level"
+author: "Francesca Mancini"
+date: "12 April 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
+
+library(gamm4)
+library(ggplot2)
+library(dplyr)
+library(mgcViz)
+```
+
+The code in this document requires the following packages:
+
+```{r packages, evaluate = FALSE}
+library(gamm4)
+library(ggplot2)
+library(dplyr)
+library(mgcViz)
+
+```
+
+
+## Data 
+
+The file below contains the data from the public FIT counts that were processes using the code in the *Public FIT counts data manipulation report*.
+
+```{r data}
+
+FIT_public_2018_GB <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_public_2018_GB.csv",
+                               header = TRUE)
+
+FIT_public_2018_GB$flower_context <- factor(FIT_public_2018_GB$flower_context,
+                                            ordered = T, levels = c(
+                                              "More or less isolated",
+                                              "Growing in a larger patch of the same flower",
+                                              "Growing in a larger patch of many different flowers"))
+FIT_public_2018_GB$wind_speed <- factor(FIT_public_2018_GB$wind_speed,
+                                        ordered = T, levels = c(
+                                          "Leaves still/moving occasionally",
+                                          "Leaves moving gently all the time",
+                                          "Leaves moving strongly"))
+
+FIT_public_2018_GB$sunshine <- factor(FIT_public_2018_GB$sunshine,
+                                        ordered = T, levels = c(
+                                          "Entirely in sunshine",
+                                          "Partly in sun and partly shaded",
+                                          "Entirely shaded"))
+
+
+FIT_public_2018_GB$flower_class <- as.factor(FIT_public_2018_GB$flower_class)
+
+```
+
+
+
+## Analysis
+
+The code in this section of the document fits the same model to the different insect group counts.
+The model is a Generalised Additive Mixed Model, which includes a random effect for each site where the FIT count was conducted. The model includes a thin plate regression spline to describe the relationship between the number of insects counted and Julian date. Given the differences in the wheather between the three countries, we fit two models: one with a separate spline for each of the countries and one with only one smoother for all three countries. We then use AIC to compare the two and choose the best model (lowest AIC).
+
+The model tests a few parametric terms, specifically: the effect of the type of flower (open or closed), the number of floral units counted, the flower context (whether the areas was isolated or within an area with more flowers), the speed of the wind and sunshine during the count, the habitat type (whether it was urban, agricultural or semi-natural) and the country.
+
+Since the response variable is a count, we use a Poisson distribution with a log link function.
+
+
+##### All insects
+
+We fit the two models with the same parametric terms and two different random structures, one with separate smoothers for Julian date and the other with a single smoother. Then we use AIC to select the best model. 
+
+```{r GAMM_all_insects}
+
+FIT_public_allInsects_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + 
+                                        flower_class + floral_unit_count + flower_context + 
+                                        wind_speed + sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
+FIT_public_allInsects_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
+                                        floral_unit_count + flower_context + wind_speed + 
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
+AIC(FIT_public_allInsects_gamm_1$mer, FIT_public_allInsects_gamm_2$mer)
+
+```
+
+The model with a separate smoother for each country is clearly the best one, as indicated by a $\Delta$AIC of 41.
+
+We now investigate the approximate significance of the parametric terms in our model by conducting an analysis of variance.
+
+```{r anova_all_insects}
+anova(FIT_public_allInsects_gamm_1$gam)
+
+```
+
+
+Most of the variables included in the model seem to be important in explaining the variability in our data, except for wind speed, for which the p-value of the $\chi^2$ test is > 0.05.
+We then refit the model, excluding this variable and produce some diagnostic plots of residuals.
+
+```{r GAMM_all_insects_diag}
+
+FIT_public_allInsects_gamm_3 <- gamm4(all_insects_total ~ s(JulDate, by = country) +
+                                        flower_class +
+                                        floral_unit_count + flower_context +  
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
+
+par(mfrow = c(2,2))
+gam.check(FIT_public_allInsects_gamm_3$gam, type = "deviance")
+
+FIT_public_allInsects_gamm_3$mer
+summary(FIT_public_allInsects_gamm_3$gam)
+
+```
+
+
+And plot the non-parametric components of the model:
+
+```{r GAMM_all_insects_smooth_plots}
+
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_public_allInsects_gamm_3$gam,  
+         shift = FIT_public_allInsects_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Total insect count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+
+all_insects_gamm_viz <- getViz(FIT_public_allInsects_gamm_3$gam)
+
+```
+
+An the parametric terms.
+
+```{r GAMM_all_insects_param_plots}
+
+all_insects_flower_class <- plot(pterm(all_insects_gamm_viz, 1))
+all_insects_flower_count <- plot(pterm(all_insects_gamm_viz, 2))
+all_insects_flower_context <- plot(pterm(all_insects_gamm_viz, 3))
+
+all_insects_sunshine <- plot(pterm(all_insects_gamm_viz, 4))
+
+all_insects_habitat <- plot(pterm(all_insects_gamm_viz, 5))
+
+all_insects_country <- plot(pterm(all_insects_gamm_viz, 6))
+
+
+Flower_class <- all_insects_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+  
+Flower_count <- all_insects_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  xlab("Floral unit count") +
+  ylab("Effect on total insect count") +
+  theme_classic() 
+
+Flower_context <- all_insects_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
+  theme_classic() 
+
+Sunshine <- all_insects_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Entirely shaded", 
+                              "Partly in sun and partly shaded"), 
+                   labels = c("In sunshine", 
+                              "Shaded", 
+                              "Partly")) +
+  theme_classic() 
+
+Habitat <- all_insects_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on total insect count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic() 
+
+gridPrint(Flower_class, Flower_count, Flower_context,
+          Sunshine, Habitat, ncol = 2, top = "")
+
+
+
+```
+
+### All bees
+
+Just as for the total insect counts, we fit the same models to all the bees. We calculate a total bee count as the sum of all individual bee counts.
+
+```{r allBees}
+FIT_public_2018_GB <- FIT_public_2018_GB %>%
+  rowwise() %>%
+  mutate(all_bees = sum(bumblebees, honeybees, solitary_bees))
+
+```
+
+Now we can fit the models and conduct model selection.
+
+```{r GAMMBees}
+FIT_public_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
+                                floral_unit_count + flower_context + wind_speed + 
+                                 sunshine + habitat_class + country,
+                                family = poisson, random = ~(1|site_1km), 
+                                data = FIT_public_2018_GB)
+
+
+FIT_public_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_class +
+                                  floral_unit_count + flower_context + wind_speed + 
+                                  sunshine + habitat_class + country,
+                                  family = poisson, random = ~(1|site_1km), 
+                                  data = FIT_public_2018_GB)
+
+
+AIC(FIT_public_bee_gamm_1$mer, FIT_public_bee_gamm_2$mer)
+
+```
+
+In this case, the model with a single smoother for Julian date common to all countries is the best model, with a $\Delta$AIC of 35.
+
+As before we use the `anova` function to investigate approximate significance of the parametric terms and refit the model excluding the non-significant terms.
+
+```{r anova_allBees}
+anova(FIT_public_bee_gamm_2$gam)
+
+FIT_public_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate) + flower_context +  
+                                 sunshine + habitat_class + country,
+                                 family = poisson, random = ~(1|site_1km), 
+                                 data = FIT_public_2018_GB)
+
+FIT_public_bee_gamm_3$mer
+summary(FIT_public_bee_gamm_3$gam)
+
+```
+
+We check for violations of model assumptions by visualising residual plots.
+
+```{r diag_allBees}
+
+par(mfrow = c(2,2))
+gam.check(FIT_public_bee_gamm_3$gam, type = "deviance")
+
+```
+
+
+And plot smoothers and parametric term.
+
+
+```{r GAMM_bees_smooth_plots}
+
+bees_gamm_viz <- getViz(FIT_public_bee_gamm_3$gam)
+
+
+par(mar=c(5,5,1,1), oma=c(2,1,1,1), mgp = c(3,1,0))
+plot.gam(FIT_public_bee_gamm_3$gam,  
+         shift = FIT_public_bee_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Bee count", shade = TRUE, shade.col = "grey",
+         cex.lab = 0.8, cex.axis = 0.5)
+
+bees_flower_context <- plot(pterm(bees_gamm_viz, 1))
+
+bees_sunshine <- plot(pterm(bees_gamm_viz, 2))
+
+bees_habitat <- plot(pterm(bees_gamm_viz, 3))
+
+bees_country <- plot(pterm(bees_gamm_viz, 4))
+
+
+
+Flower_context <- bees_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
+  theme_classic()
+
+Sunshine <- bees_sunshine + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Sunshine during count") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine", 
+                              "Entirely shaded", 
+                              "Partly in sun and partly shaded"), 
+                   labels = c("In sunshine", 
+                              "Shaded", 
+                              "Partly")) +
+  theme_classic()
+
+Habitat <- bees_habitat + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Habitat type") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("A", "N", "U"), 
+                   labels = c("Agricultural", 
+                              "Semi-natural", 
+                              "Urban")) +
+  theme_classic()
+
+Country <- bees_country + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Country") +
+  ylab("Effect on bee count") +
+  theme_classic()
+
+
+gridPrint(Flower_context, Sunshine, 
+          Habitat, Country, ncol = 2, top = "")
+
+```
+
+### Hoverflies
+
+We do the same for hoverflies.
+
+```{r GAMMHover}
+
+FIT_public_hoverflies_gamm_1 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
+                                        floral_unit_count + flower_context + wind_speed + 
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
+
+FIT_public_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
+                                        floral_unit_count + flower_context + wind_speed + 
+                                        sunshine + habitat_class + country,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
+
+AIC(FIT_public_hoverflies_gamm_1$mer, FIT_public_hoverflies_gamm_2$mer)
+
+```
+
+With a $\Delta$AIC of 20 the first model with separate smoothers for the countries is the best model.
+
+``` {r GAMMHover_anova}
+anova(FIT_public_hoverflies_gamm_1$gam)
+
+FIT_public_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
+                                        floral_unit_count + flower_context,
+                                        family = poisson, random = ~(1|site_1km), 
+                                        data = FIT_public_2018_GB)
+
+
+
+FIT_public_hoverflies_gamm_3$mer
+summary(FIT_public_hoverflies_gamm_3$gam)
+
+```
+
+Diagnostic residual plots:
+
+```{r diag_Hover}
+
+par(mfrow = c(2,2))
+gam.check(FIT_public_hoverflies_gamm_3$gam, type = "deviance")
+
+```
+
+
+And effect plots:
+
+```{r Hover_smooth_plots}
+
+hoverflies_gamm_viz <- getViz(FIT_public_hoverflies_gamm_3$gam)
+
+par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+plot.gam(FIT_public_hoverflies_gamm_3$gam,  
+         shift = FIT_public_allInsects_gamm_3$gam$coefficients[1], 
+         trans = exp, xlab = "\nJulian Date\nApril 10 - October 27",
+         ylab = "Hoverfly count", shade = TRUE, shade.col = "grey",
+         cex.lab = 1.5, cex.axis = 1.2)
+mtext("England", side = 3, line = -2, outer = TRUE, adj = 0.2)
+mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
+mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
+
+```
+
+```{r Hover_param_plots}
+
+
+hoverflies_flower_class <- plot(pterm(all_insects_gamm_viz, 1))
+hoverflies_flower_count <- plot(pterm(all_insects_gamm_viz, 2))
+hoverflies_flower_context <- plot(pterm(all_insects_gamm_viz, 3))
+
+
+Flower_class <- hoverflies_flower_class + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower type") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  theme_classic()
+
+
+Flower_count <- hoverflies_flower_count + 
+  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+  xlab("Floral unit count") +
+  ylab("Effect on hoverfly count") +
+  theme_classic()
+
+Flower_context <- hoverflies_flower_context + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Flower context") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
+  theme_classic()
+
+gridPrint(Flower_class, Flower_count, Flower_context,
+          ncol = 2, top = "")
+
+
+```
+
+
