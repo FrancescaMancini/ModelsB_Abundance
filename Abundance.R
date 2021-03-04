@@ -869,44 +869,17 @@ dev.off()
 
 ## 1 Km FIT counts ----
 
-FIT_1Km <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\data outputs current versions\\tblEXPORT_1kmFITCount.csv",
-                    header = T, stringsAsFactors = FALSE)
+# load combined 2017-2020 data
+FIT_1km <- read.csv("./FIT1km_combined.csv",
+                    stringsAsFactors = FALSE)
 
 
-str(FIT_1Km)
 
-FIT_1Km$habitat <- tolower(FIT_1Km$habitat)
-FIT_1Km$habitat_other_detail <- tolower(FIT_1Km$habitat_other_detail)
-
-str(habitat_class)
-names(habitat_class)[3] <- "habitat_class"
-habitat_class$habitat <- tolower(habitat_class$habitat)
-habitat_class <- distinct(habitat_class, habitat, .keep_all = TRUE)
-#habitat_class <- habitat_class[,-1]
-
-str(flower_class)
-names(flower_class)[2] <- "flower_class"
-flower_class <- distinct(flower_class)
-
-# change NAs to 0s
-FIT_1Km <- FIT_1Km %>%
-  mutate(bumblebees = replace_na(bumblebees, 0),
-         honeybees = replace_na(honeybees, 0),
-         solitary_bees = replace_na(solitary_bees, 0),
-         wasps = replace_na(wasps, 0),
-         hoverflies = replace_na(hoverflies, 0),
-         other_flies = replace_na(other_flies, 0),
-         butterflies_moths = replace_na(butterflies_moths, 0),
-         beetles = replace_na(beetles, 0),
-         insects_small = replace_na(insects_small, 0),
-         insects_other = replace_na(insects_other, 0),
-         all_insects_total = replace_na(all_insects_total, 0))
-
-FIT_1Km <- FIT_1Km %>%
+FIT_1km <- FIT_1km %>%
   mutate(date = as.Date(date, format = "%d/%m/%Y %H:%M"),
          JulDate = as.numeric(format(date, "%j")),
-         year = as.factor(format(date,"%Y")),
-         site_1km = as.factor(reformat_gr(FIT_1Km$sample_gridref, prec_out = 1000)),
+         Year = as.factor(Year),
+         site_1km = as.factor(reformat_gr(FIT_1km$X1km_square, prec_out = 1000)),
          site_1km_num = as.numeric(site_1km),
          country = as.factor(country),
          flower_new = as.factor(case_when(target_flower_corrected == "Other - please describe below" ~ "Other",
@@ -919,89 +892,68 @@ FIT_1Km <- FIT_1Km %>%
          wind_speed = factor(wind_speed, order = TRUE, 
                              levels = c("Leaves still/moving occasionally",
                                         "Leaves moving gently all the time",
-                                        "Leaves moving strongly"))) %>%
-  left_join(flower_class, by = "target_flower_family") %>%
-  left_join(habitat_class, by = "habitat") %>%
-  left_join(habitat_class, by = c("habitat_other_detail" = "habitat")) %>%
-  mutate(habitat_class = coalesce(habitat_class.x, habitat_class.y)) %>%
-  select(-one_of(c("habitat_class.x", "habitat_class.y", "type.x", "type.y")))
-
-str(FIT_1Km)
+                                        "Leaves moving strongly")),
+         sunshine = factor(sunshine, ordered = T, 
+                           levels = c("Entirely in sunshine",
+                                      "Partly in sun and partly shaded",
+                                      "Entirely shaded")),
+         cloud_cover = factor(cloud_cover, ordered = TRUE,
+                              levels = c("All or mostly blue",
+                                         "Half blue and half cloud",
+                                         "All or mostly cloud")))
 
 # some tests to make sure we have correclty classified all the observations
-summary(as.factor(FIT_1Km$habitat_class))
-# all obs are classified as either U, A or N
+summary(as.factor(FIT_1km$habitat_type))
+# all obs are classified as either agricultural, garden, semi-natural or urban
 
-summary(as.factor(FIT_1Km$flower_class))
+table(FIT_1km$flower_structure)
+# some NAs
+FIT_1km[which(is.na(FIT_1km$flower_structure)), 
+           c("flower_structure", "target_flower_corrected", "target_other_name_corrected","target_flower_family")]
 
+# these should have been correctly classified
+FIT_1km[284, "flower_structure"] <- "open"
+FIT_1km[482, "flower_structure"] <- "closed"
+FIT_1km[c(699, 701, 703, 707), "flower_structure"] <- "closed"
+# the rest are other ambiguous or missing
 
-table(FIT_1Km$country)
+table(FIT_1km$country)
 
-FIT_1Km$flower_class <- as.factor(FIT_1Km$flower_class)
-FIT_1Km$habitat_class <- as.factor(FIT_1Km$habitat_class)
-
-
-write.csv(FIT_1Km,
-         file = "P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_1Km_processed.csv",
-         row.names = FALSE)
-
-
-FIT_1Km <- read.csv("P:\\NEC06214_UK Pollinator Monitoring and Research Partnership\\Data and analysis\\Data processed\\FIT_1Km_processed.csv",
-                    header = TRUE)
-
-FIT_1Km$flower_context <- factor(FIT_1Km$flower_context,
-                                 ordered = T, levels = c("More or less isolated",
-                                                         "Growing in a larger patch of the same flower",
-                                                         "Growing in a larger patch of many different flowers"))
-FIT_1Km$wind_speed <- factor(FIT_1Km$wind_speed,
-                             ordered = T, levels = c("Leaves still/moving occasionally",
-                                                     "Leaves moving gently all the time",
-                                                     "Leaves moving strongly"))
-
-FIT_1Km$sunshine <- factor(FIT_1Km$sunshine,
-                             ordered = T, levels = c("Entirely in sunshine",
-                                                     "Partly in sun and partly shaded",
-                                                     "Entirely shaded"))
-
-
-FIT_1Km$flower_class <- as.factor(FIT_1Km$flower_class)
-
-FIT_1Km$year <- as.factor(FIT_1Km$year)
+FIT_1km$flower_structure <- as.factor(FIT_1km$flower_structure)
+FIT_1km$habitat_type <- as.factor(FIT_1km$habitat_type)
 
 
 # ## Data exploration ----
 
 ## GAMM for all insects ----
 
-FIT_1Km_allInsects_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_class +
+FIT_1Km_allInsects_gamm_1 <- gamm4(all_insects_total ~ s(JulDate, by = country) + flower_structure +
                                     floral_unit_count + flower_context + wind_speed + 
-                                    sunshine + habitat_class + country + year, 
-                                    family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+                                    sunshine + habitat_type + country + Year, 
+                                    family = poisson, random = ~(1|site_1km), data = FIT_1km)
 
 
-FIT_1Km_allInsects_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_class +
-                                    floral_unit_count + flower_context + wind_speed + 
-                                    sunshine + habitat_class + country + year, 
-                                    family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+FIT_1Km_allInsects_gamm_2 <- gamm4(all_insects_total ~ s(JulDate) + flower_structure +
+                                     floral_unit_count + flower_context + wind_speed + 
+                                     sunshine + habitat_type + country + Year, 
+                                   family = poisson, random = ~(1|site_1km), data = FIT_1km)
 
 
 AIC(FIT_1Km_allInsects_gamm_1$mer, FIT_1Km_allInsects_gamm_2$mer)
 
 
-anova(FIT_1Km_allInsects_gamm_1$gam)
+summary(FIT_1Km_allInsects_gamm_1$gam)
+# all variables significant
 
-
-FIT_1Km_allInsects_gamm_1$mer
-
-sink("./Plots/FIT_1Km_allInsects_summary.txt")
+sink(file.path(output_path, "FIT counts/FIT_1Km_allInsects_summary.txt"))
 summary(FIT_1Km_allInsects_gamm_1$gam)
 sink()
 
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_allInsects_gamm_1$gam, type = "deviance")
 
-png("./Plots/FIT_1Km_allInsects_smoothers.png", 
-    width = 190, height = 150, unit = "mm", res = 300)
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_smoothers.png"), 
+    width = 190, height = 120, unit = "mm", res = 300)
 par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
 plot.gam(FIT_1Km_allInsects_gamm_1$gam,  
          shift = FIT_1Km_allInsects_gamm_1$gam$coefficients[1], 
@@ -1013,20 +965,20 @@ mtext("Scotland", side = 3, line = -2, outer = TRUE, adj = 0.55)
 mtext("Wales", side = 3, line = -2, outer = TRUE, adj = 0.9)
 dev.off()
 
-# welsh
-
-png("./Plots/FIT_1Km_allInsects_smoothers_welsh.png", 
-    width = 190, height = 150, unit = "mm", res = 300)
-par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
-plot.gam(FIT_1Km_allInsects_gamm_1$gam,  
-         shift = FIT_1Km_allInsects_gamm_1$gam$coefficients[1], 
-         trans = exp, xlab = "\nDyddiad Julian \nEbrill  10 - Hydref 27",
-         ylab = "Cyfanswm cyfrif pryfed", shade = TRUE, shade.col = "grey",
-         cex.lab = 1.5, cex.axis = 1.2)
-mtext("Lloegr", side = 3, line = -2, outer = TRUE, adj = 0.2)
-mtext("Yr Alban", side = 3, line = -2, outer = TRUE, adj = 0.55)
-mtext("Cymru", side = 3, line = -2, outer = TRUE, adj = 0.9)
-dev.off()
+# # welsh
+# 
+# png("./Plots/FIT_1Km_allInsects_smoothers_welsh.png", 
+#     width = 190, height = 150, unit = "mm", res = 300)
+# par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
+# plot.gam(FIT_1Km_allInsects_gamm_1$gam,  
+#          shift = FIT_1Km_allInsects_gamm_1$gam$coefficients[1], 
+#          trans = exp, xlab = "\nDyddiad Julian \nEbrill  10 - Hydref 27",
+#          ylab = "Cyfanswm cyfrif pryfed", shade = TRUE, shade.col = "grey",
+#          cex.lab = 1.5, cex.axis = 1.2)
+# mtext("Lloegr", side = 3, line = -2, outer = TRUE, adj = 0.2)
+# mtext("Yr Alban", side = 3, line = -2, outer = TRUE, adj = 0.55)
+# mtext("Cymru", side = 3, line = -2, outer = TRUE, adj = 0.9)
+# dev.off()
 
 all_insects_1km_gamm_viz <- getViz(FIT_1Km_allInsects_gamm_1$gam)
 
@@ -1043,18 +995,18 @@ all_insects_1km_habitat <- plot(pterm(all_insects_1km_gamm_viz, 6))
 
 all_insects_1km_year <- plot(pterm(all_insects_1km_gamm_viz, 8))
 
-# open - close
-flower_type_welsh_labels <- c("Agored", "Caeedig ")
-# isolated - same flower - many flowers
-flower_context_welsh_labels <- c("Ar ei ben ei hun", 
-                                 "Llain fawr\n(yr un blodyn)",
-                                 "Llain fawr\n(llawer o flodau)")
-# low - medium - high
-wind_welsh_labels <- c("Isel", "Cymhedrol", "Uchel")
-# in sunshine - partly - shaded
-sunshine_welsh_labels <- c("Yn yr heulwen", "Rhannol", "Yn y cysgod")
-# agricultural - semi-natural - urban
-habitat_welsh_labels <- c("Amaethyddol", "Lled-naturiol", "Trefol ")
+# # open - close
+# flower_type_welsh_labels <- c("Agored", "Caeedig ")
+# # isolated - same flower - many flowers
+# flower_context_welsh_labels <- c("Ar ei ben ei hun", 
+#                                  "Llain fawr\n(yr un blodyn)",
+#                                  "Llain fawr\n(llawer o flodau)")
+# # low - medium - high
+# wind_welsh_labels <- c("Isel", "Cymhedrol", "Uchel")
+# # in sunshine - partly - shaded
+# sunshine_welsh_labels <- c("Yn yr heulwen", "Rhannol", "Yn y cysgod")
+# # agricultural - semi-natural - urban
+# habitat_welsh_labels <- c("Amaethyddol", "Lled-naturiol", "Trefol ")
 
 
 
@@ -1064,25 +1016,25 @@ Flower_class <- all_insects_1km_flower_class +
   l_rug(alpha = 0.3) +
   xlab("Flower type") +
   ylab("Effect on total insect count") +
-  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  scale_x_discrete(breaks = c("open", "closed"), labels = c("Open", "Closed")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_flowerClass.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_flowerClass.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Flower_class
 dev.off()
 
 
-# welsh
-
-Flower_class_welsh <- all_insects_1km_flower_class + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Math o flodyn") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  scale_x_discrete(breaks = c("0", "1"), labels = flower_type_welsh_labels) +
-  theme_classic()
+# # welsh
+# 
+# Flower_class_welsh <- all_insects_1km_flower_class + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Math o flodyn") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   scale_x_discrete(breaks = c("0", "1"), labels = flower_type_welsh_labels) +
+#   theme_classic()
 
 
 Flower_count <- all_insects_1km_flower_count + 
@@ -1092,20 +1044,20 @@ Flower_count <- all_insects_1km_flower_count +
   ylab("Effect on total insect count") +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_flowerCount.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_flowerCount.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Flower_count
 dev.off()
 
 
-# welsh
-
-Flower_count_welsh <- all_insects_1km_flower_count + 
-  l_fitLine(colour = "darkgoldenrod2", size = 1) + 
-  l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
-  xlab("Cyfrif uned flodeuol") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  theme_classic()
+# # welsh
+# 
+# Flower_count_welsh <- all_insects_1km_flower_count + 
+#   l_fitLine(colour = "darkgoldenrod2", size = 1) + 
+#   l_ciLine(mul = 5, colour = "darkgoldenrod", linetype = 2, size = 0.5) + 
+#   xlab("Cyfrif uned flodeuol") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   theme_classic()
 
 
 Flower_context <- all_insects_1km_flower_context + 
@@ -1122,25 +1074,25 @@ Flower_context <- all_insects_1km_flower_context +
                               "Large patch\n(many flowers)")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_flowerContext.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_flowerContext.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Flower_context
 dev.off()
 
 
-# welsh
-
-Flower_context_welsh <- all_insects_1km_flower_context + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Cyd-destun y blodyn") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  scale_x_discrete(breaks = c("More or less isolated", 
-                              "Growing in a larger patch of the same flower",
-                              "Growing in a larger patch of many different flowers"), 
-                   labels = flower_context_welsh_labels) +
-  theme_classic()
+# # welsh
+# 
+# Flower_context_welsh <- all_insects_1km_flower_context + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Cyd-destun y blodyn") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   scale_x_discrete(breaks = c("More or less isolated", 
+#                               "Growing in a larger patch of the same flower",
+#                               "Growing in a larger patch of many different flowers"), 
+#                    labels = flower_context_welsh_labels) +
+#   theme_classic()
 
 
 Wind <- all_insects_1km_wind + 
@@ -1152,30 +1104,30 @@ Wind <- all_insects_1km_wind +
   scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
                               "Leaves moving gently all the time",
                               "Leaves moving strongly"), 
-                   labels = c("Low", 
-                              "Medium", 
-                              "High")) +
+                   labels = c("Leaves still", 
+                              "Leaves\nmoving\ngently", 
+                              "Leaves\nmoving\nstrongly")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_Wind.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_Wind.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Wind
 dev.off()
 
 
-# welsh
-
-Wind_welsh <- all_insects_1km_wind + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Cyflymder y gwynt yn ystod y cyfrif") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
-                              "Leaves moving gently all the time",
-                              "Leaves moving strongly"), 
-                   labels = wind_welsh_labels) +
-  theme_classic()
+# # welsh
+# 
+# Wind_welsh <- all_insects_1km_wind + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Cyflymder y gwynt yn ystod y cyfrif") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+#                               "Leaves moving gently all the time",
+#                               "Leaves moving strongly"), 
+#                    labels = wind_welsh_labels) +
+#   theme_classic()
 
 
 
@@ -1185,33 +1137,33 @@ Sunshine <- all_insects_1km_sunshine +
   l_rug(alpha = 0.3) +
   xlab("Sunshine during count") +
   ylab("Effect on total insect count") +
-  scale_x_discrete(breaks = c("Entirely in sunshine", 
+  scale_x_discrete(breaks = c("Entirely in sunshine",
                               "Partly in sun and partly shaded",
-                              "Entirely shaded"), 
-                   labels = c("In sunshine", 
-                              "Partly", 
+                              "Entirely shaded"),
+                   labels = c("In sunshine",
+                              "Partly",
                               "Shaded")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_Sunshine.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_Sunshine.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Sunshine
 dev.off()
 
 
-# welsh
-
-Sunshine_welsh <- all_insects_1km_sunshine + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Heulwen yn ystod y cyfrif") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  scale_x_discrete(breaks = c("Entirely in sunshine", 
-                              "Partly in sun and partly shaded",
-                              "Entirely shaded"), 
-                   labels = sunshine_welsh_labels) +
-  theme_classic()
+# # welsh
+# 
+# Sunshine_welsh <- all_insects_1km_sunshine + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Heulwen yn ystod y cyfrif") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   scale_x_discrete(breaks = c("Entirely in sunshine", 
+#                               "Partly in sun and partly shaded",
+#                               "Entirely shaded"), 
+#                    labels = sunshine_welsh_labels) +
+#   theme_classic()
 
 
 Habitat <- all_insects_1km_habitat + 
@@ -1220,30 +1172,30 @@ Habitat <- all_insects_1km_habitat +
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on total insect count") +
-  scale_x_discrete(breaks = c("A", "N", "U"), 
-                   labels = c("Agricultural", 
-                              "Semi-natural", 
-                              "Urban")) +
+  # scale_x_discrete(breaks = c("A", "N", "U"), 
+  #                  labels = c("Agricultural", 
+  #                             "Semi-natural", 
+  #                             "Urban")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_Habitat.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_Habitat.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Habitat
 dev.off()
 
 
-# welsh
-
-Habitat_welsh <- all_insects_1km_habitat + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Math o gynefin") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  scale_x_discrete(breaks = c("A", "N", "U"), 
-                   labels = habitat_welsh_labels) +
-  theme_classic()
-
+# # welsh
+# 
+# Habitat_welsh <- all_insects_1km_habitat + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Math o gynefin") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   scale_x_discrete(breaks = c("A", "N", "U"), 
+#                    labels = habitat_welsh_labels) +
+#   theme_classic()
+# 
 
 Year <- all_insects_1km_year + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
@@ -1253,72 +1205,78 @@ Year <- all_insects_1km_year +
   ylab("Effect on total insect count") +
   theme_classic()
 
-png("./Plots/FIT_1Km_allInsects_Year.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_Year.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Year
 dev.off()
 
 
-# welsh
+# # welsh
+# 
+# Year_welsh <- all_insects_1km_year + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Blwyddyn") +
+#   ylab("Effaith ar gyfanswm pryfed") +
+#   theme_classic()
+# 
 
-Year_welsh <- all_insects_1km_year + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Blwyddyn") +
-  ylab("Effaith ar gyfanswm pryfed") +
-  theme_classic()
-
-
-png("./Plots/FIT_1Km_allInsects_parametric.png", 
-    width = 180, height = 200, unit = "mm", res = 300)
+png(file.path(output_path, "FIT counts/FIT_1Km_allInsects_parametric.png"), 
+    width = 160, height = 220, unit = "mm", res = 300)
 gridPrint(Flower_class, Flower_count, Flower_context,
           Wind, Sunshine, Habitat, Year, ncol = 2, top = "")
 dev.off()
 
-# welsh
-
-png("./Plots/FIT_1Km_allInsects_parametric_welsh.png", 
-    width = 180, height = 220, unit = "mm", res = 300)
-gridPrint(Flower_class_welsh, Flower_count_welsh, Flower_context_welsh,
-          Wind_welsh, Sunshine_welsh, Habitat_welsh, Year_welsh, ncol = 2, top = "")
-dev.off()
+# # welsh
+# 
+# png("./Plots/FIT_1Km_allInsects_parametric_welsh.png", 
+#     width = 180, height = 220, unit = "mm", res = 300)
+# gridPrint(Flower_class_welsh, Flower_count_welsh, Flower_context_welsh,
+#           Wind_welsh, Sunshine_welsh, Habitat_welsh, Year_welsh, ncol = 2, top = "")
+# dev.off()
 
 ## All bees ----
 
 # calculate the counts for all bees as a sum of all the different bee groups
-FIT_1Km <- FIT_1Km %>%
+FIT_1km <- FIT_1km %>%
   rowwise() %>%
   mutate(all_bees = sum(bumblebees, honeybees, solitary_bees))
 
 
 ## GAMM for all_bees ----
 
-FIT_1Km_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
+FIT_1Km_bee_gamm_1 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_structure +
                             floral_unit_count + flower_context + wind_speed + 
-                            sunshine + habitat_class + country + year, 
-                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+                            sunshine + habitat_type + country + Year, 
+                            family = poisson, random = ~(1|site_1km), data = FIT_1km)
 
 
-FIT_1Km_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_class +
+FIT_1Km_bee_gamm_2 <- gamm4(all_bees ~ s(JulDate) + flower_structure +
                               floral_unit_count + flower_context + wind_speed + 
-                              sunshine + habitat_class + country + year, 
-                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+                              sunshine + habitat_type + country + Year, 
+                            family = poisson, random = ~(1|site_1km), data = FIT_1km)
 
 
 AIC(FIT_1Km_bee_gamm_1$mer, FIT_1Km_bee_gamm_2$mer)
 
-anova(FIT_1Km_bee_gamm_1$gam)
+summary(FIT_1Km_bee_gamm_1$gam)
+# floral_unit_count is not significant
+# try to exclude the variable
 
-FIT_1Km_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_class +
-                            flower_context + wind_speed + habitat_class + country, 
-                            family = poisson, random = ~(1|site_1km), data = FIT_1Km)
+FIT_1Km_bee_gamm_3 <- gamm4(all_bees ~ s(JulDate, by = country) + flower_structure +
+                               flower_context + wind_speed + 
+                               sunshine + habitat_type + country + Year, 
+                               family = poisson, random = ~(1|site_1km), 
+                               data = FIT_1km)
+
+AIC(FIT_1Km_bee_gamm_1$mer, FIT_1Km_bee_gamm_3$mer)
+# the DAIC is within two of the full model
+# so the best model is the most parsimonious one
+summary(FIT_1Km_bee_gamm_3$gam)
 
 
-
-FIT_1Km_bee_gamm_3$mer
-
-sink("./Plots/FIT_1Km_bees_summary.txt")
+sink(file.path(output_path, "FIT counts/FIT_1Km_bees_summary.txt"))
 summary(FIT_1Km_bee_gamm_3$gam)
 sink()
 
@@ -1326,8 +1284,8 @@ sink()
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_bee_gamm_3$gam, type = "deviance")
 
-png("./Plots/FIT_1Km_bees_smoothers.png", 
-    width = 190, height = 150, unit = "mm", res = 300)
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_smoothers.png"), 
+    width = 190, height = 120, unit = "mm", res = 300)
 par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
 plot.gam(FIT_1Km_bee_gamm_3$gam,  
          shift = FIT_1Km_bee_gamm_3$gam$coefficients[1], 
@@ -1345,10 +1303,10 @@ bees_1km_gamm_viz <- getViz(FIT_1Km_bee_gamm_3$gam)
 
 bees_1km_flower_class <- plot(pterm(bees_1km_gamm_viz, 1))
 bees_1km_flower_context <- plot(pterm(bees_1km_gamm_viz, 2))
-
 bees_1km_wind <- plot(pterm(bees_1km_gamm_viz, 3))
-
-bees_1km_habitat <- plot(pterm(bees_1km_gamm_viz, 4))
+bees_1km_sunshine <- plot(pterm(bees_1km_gamm_viz, 4))
+bees_1km_habitat <- plot(pterm(bees_1km_gamm_viz, 5))
+bees_1km_year <- plot(pterm(bees_1km_gamm_viz, 7))
 
 
 
@@ -1359,25 +1317,25 @@ Flower_class <- bees_1km_flower_class +
   l_rug(alpha = 0.3) +
   xlab("Flower type") +
   ylab("Effect on bee count") +
-  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  scale_x_discrete(breaks = c("open", "closed"), labels = c("Open", "Closed")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_bees_flowerClass.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_flowerClass.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Flower_class
 dev.off()
 
 
-# welsh
-
-Flower_class_welsh <- bees_1km_flower_class + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
-  l_rug(alpha = 0.3) +
-  xlab("Math o flodyn") +
-  ylab("Effaith ar gyfrif gwenyn") +
-  scale_x_discrete(breaks = c("0", "1"), labels = flower_type_welsh_labels) +
-  theme_classic()
+# # welsh
+# 
+# Flower_class_welsh <- bees_1km_flower_class + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + # shape =  if you want to change the symbol
+#   l_rug(alpha = 0.3) +
+#   xlab("Math o flodyn") +
+#   ylab("Effaith ar gyfrif gwenyn") +
+#   scale_x_discrete(breaks = c("0", "1"), labels = flower_type_welsh_labels) +
+#   theme_classic()
 
 
 Flower_context <- bees_1km_flower_context + 
@@ -1394,25 +1352,25 @@ Flower_context <- bees_1km_flower_context +
                               "Large patch\n(many flowers)")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_bees_flowerContext.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_flowerContext.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Flower_context
 dev.off()
 
 
-# welsh
-
-Flower_context_welsh <- bees_1km_flower_context + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Cyd-destun y blodyn") +
-  ylab("Effaith ar gyfrif gwenyn") +
-  scale_x_discrete(breaks = c("More or less isolated", 
-                              "Growing in a larger patch of the same flower",
-                              "Growing in a larger patch of many different flowers"), 
-                   labels = flower_context_welsh_labels) +
-  theme_classic()
+# # welsh
+# 
+# Flower_context_welsh <- bees_1km_flower_context + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Cyd-destun y blodyn") +
+#   ylab("Effaith ar gyfrif gwenyn") +
+#   scale_x_discrete(breaks = c("More or less isolated", 
+#                               "Growing in a larger patch of the same flower",
+#                               "Growing in a larger patch of many different flowers"), 
+#                    labels = flower_context_welsh_labels) +
+#   theme_classic()
 
 
 Wind <- bees_1km_wind + 
@@ -1424,118 +1382,156 @@ Wind <- bees_1km_wind +
   scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
                               "Leaves moving gently all the time",
                               "Leaves moving strongly"), 
-                   labels = c("Low", 
-                              "Medium", 
-                              "High")) +
+                   labels = c("Leaves still", 
+                              "Leaves\nmoving\ngently", 
+                              "Leaves\nmoving\nstrongly")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_bees_wind.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_wind.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Wind
 dev.off()
 
 
-# welsh
+# # welsh
+# 
+# Wind_welsh <- bees_1km_wind + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Cyflymder y gwynt yn ystod y cyfrif") +
+#   ylab("Effaith ar gyfrif gwenyn") +
+#   scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+#                               "Leaves moving gently all the time",
+#                               "Leaves moving strongly"), 
+#                    labels = wind_welsh_labels) +
+#   theme_classic()
 
-Wind_welsh <- bees_1km_wind + 
+
+Sunshine <- bees_1km_sunshine + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
-  xlab("Cyflymder y gwynt yn ystod y cyfrif") +
-  ylab("Effaith ar gyfrif gwenyn") +
-  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
-                              "Leaves moving gently all the time",
-                              "Leaves moving strongly"), 
-                   labels = wind_welsh_labels) +
+  xlab("Sunshine during count") +
+  ylab("Effect on bee count") +
+  scale_x_discrete(breaks = c("Entirely in sunshine",
+                              "Partly in sun and partly shaded",
+                              "Entirely shaded"),
+                   labels = c("In sunshine",
+                              "Partly",
+                              "Shaded")) +
   theme_classic()
 
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_Sunshine.png"), 
+    width = 80, height = 80, unit = "mm", res = 300)
+Sunshine
+dev.off()
 
 
-Habitat <- all_insects_1km_habitat + 
+Habitat <- bees_1km_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on bee count") +
-  scale_x_discrete(breaks = c("A", "N", "U"), 
-                   labels = c("Agricultural", 
-                              "Semi-natural", 
-                              "Urban")) +
+  # scale_x_discrete(breaks = c("A", "N", "U"), 
+  #                  labels = c("Agricultural", 
+  #                             "Semi-natural", 
+  #                             "Urban")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_bees_Habitat.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_Habitat.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Habitat
 dev.off()
 
 
-# welsh
+# # welsh
+# 
+# Habitat_welsh <- all_insects_1km_habitat + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Math o gynefin") +
+#   ylab("Effaith ar gyfrif gwenyn") +
+#   scale_x_discrete(breaks = c("A", "N", "U"), 
+#                    labels = habitat_welsh_labels) +
+#   theme_classic()
+# 
 
-Habitat_welsh <- all_insects_1km_habitat + 
+
+Year <- bees_1km_year + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
-  xlab("Math o gynefin") +
-  ylab("Effaith ar gyfrif gwenyn") +
-  scale_x_discrete(breaks = c("A", "N", "U"), 
-                   labels = habitat_welsh_labels) +
+  xlab("Year") +
+  ylab("Effect on bee count") +
   theme_classic()
 
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_Year.png"), 
+    width = 80, height = 80, unit = "mm", res = 300)
+Year
+dev.off()
 
-png("./Plots/FIT_1Km_bees_parametric.png", 
-    width = 180, height = 180, unit = "mm", res = 300)
+
+png(file.path(output_path, "FIT counts/FIT_1Km_bees_parametric.png"), 
+    width = 160, height = 200, unit = "mm", res = 300)
 gridPrint(Flower_class, Flower_context,
-          Wind, Habitat, ncol = 2, top = "")
+          Wind, Sunshine, Habitat, 
+          Year, ncol = 2, top = "")
 dev.off()
 
 
-# welsh
-
-png("./Plots/FIT_1Km_bees_parametric_welsh.png", 
-    width = 180, height = 180, unit = "mm", res = 300)
-gridPrint(Flower_class_welsh, Flower_context_welsh,
-          Wind_welsh, Habitat_welsh, ncol = 2, top = "")
-dev.off()
+# # welsh
+# 
+# png("./Plots/FIT_1Km_bees_parametric_welsh.png", 
+#     width = 180, height = 180, unit = "mm", res = 300)
+# gridPrint(Flower_class_welsh, Flower_context_welsh,
+#           Wind_welsh, Habitat_welsh, ncol = 2, top = "")
+# dev.off()
 
 
 ## Hoverflies ----
 
 ## GAMM for hoverflies ----
 
-FIT_1Km_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +
+FIT_1Km_hoverflies_gamm <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_structure +
                                  floral_unit_count + flower_context + wind_speed + 
-                                 sunshine + habitat_class + country + year, 
+                                 sunshine + habitat_type + country + Year, 
                                  family = poisson, random = ~(1|site_1km), 
-                                 data = FIT_1Km)
+                                 data = FIT_1km)
 
 
-FIT_1Km_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_class +
-                                   floral_unit_count + flower_context + wind_speed + 
-                                   sunshine + habitat_class + country + year, 
+FIT_1Km_hoverflies_gamm_2 <- gamm4(hoverflies ~ s(JulDate) + flower_structure +
+                                     floral_unit_count + flower_context + wind_speed + 
+                                     sunshine + habitat_type + country + Year, 
                                    family = poisson, random = ~(1|site_1km), 
-                                   data = FIT_1Km)
+                                   data = FIT_1km)
 
 
 AIC(FIT_1Km_hoverflies_gamm$mer, FIT_1Km_hoverflies_gamm_2$mer)
 
-anova(FIT_1Km_hoverflies_gamm$gam)
+summary(FIT_1Km_hoverflies_gamm$gam)
 
-FIT_1Km_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_class +  
-                                     sunshine + habitat_class + country + year, 
+FIT_1Km_hoverflies_gamm_3 <- gamm4(hoverflies ~ s(JulDate, by = country) + flower_structure +
+                                   flower_context + wind_speed + 
+                                   sunshine + habitat_type + country + Year, 
                                    family = poisson, random = ~(1|site_1km), 
-                                   data = FIT_1Km)
+                                   data = FIT_1km)
+
+AIC(FIT_1Km_hoverflies_gamm$mer, FIT_1Km_hoverflies_gamm_3$mer)
 
 
-FIT_1Km_hoverflies_gamm_3$mer
+summary(FIT_1Km_hoverflies_gamm_3$gam)
 
-sink("./Plots/FIT_1Km_hoverflies_summary.txt")
+sink(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_summary.txt"))
 summary(FIT_1Km_hoverflies_gamm_3$gam)
 sink()
 
 par(mfrow = c(2,2))
 gam.check(FIT_1Km_hoverflies_gamm_3$gam, type = "deviance")
 
-png("./Plots/FIT_1Km_hoverflies_smoothers.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_smoothers.png"), 
     width = 190, height = 150, unit = "mm", res = 300)
 par(mfrow = c(1,3), mar=c(7,7,5,1.5), oma=c(2,2,1,1.5), mgp = c(5,1,0))
 plot.gam(FIT_1Km_hoverflies_gamm_3$gam,  
@@ -1552,12 +1548,11 @@ hover_1km_gamm_viz <- getViz(FIT_1Km_hoverflies_gamm_3$gam)
 
 
 hover_1km_flower_class <- plot(pterm(hover_1km_gamm_viz, 1))
-
-hover_1km_sunshine <- plot(pterm(hover_1km_gamm_viz, 2))
-
-hover_1km_habitat <- plot(pterm(hover_1km_gamm_viz, 3))
-
-hover_1km_year <- plot(pterm(hover_1km_gamm_viz, 5))
+hover_1km_flower_context <- plot(pterm(hover_1km_gamm_viz, 2))
+hover_1km_wind <- plot(pterm(hover_1km_gamm_viz, 3))
+hover_1km_sunshine <- plot(pterm(hover_1km_gamm_viz, 4))
+hover_1km_habitat <- plot(pterm(hover_1km_gamm_viz, 5))
+hover_1km_year <- plot(pterm(hover_1km_gamm_viz, 7))
 
 
 Flower_class <- hover_1km_flower_class + 
@@ -1566,25 +1561,67 @@ Flower_class <- hover_1km_flower_class +
   l_rug(alpha = 0.3) +
   xlab("Flower type") +
   ylab("Effect on hoverfly count") +
-  scale_x_discrete(breaks = c("0", "1"), labels = c("Open", "Close")) +
+  scale_x_discrete(breaks = c("open", "closed"), labels = c("Open", "Closed")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_hoverflies_flowerClass.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_flowerClass.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Flower_class
 dev.off()
 
 
-# welsh
+# # welsh
+# 
+# Flower_class_welsh <- hover_1km_flower_class + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Math o flodyn") +
+#   ylab("Effaith ar gyfrif pryfed hofran") +
+#   scale_x_discrete(breaks = c("0", "1"), labels = flower_type_welsh_labels) +
+#   theme_classic()
 
-Flower_class_welsh <- hover_1km_flower_class + 
+
+Flower_context <- hover_1km_flower_context + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
   l_rug(alpha = 0.3) +
-  xlab("Math o flodyn") +
-  ylab("Effaith ar gyfrif pryfed hofran") +
-  scale_x_discrete(breaks = c("0", "1"), labels = flower_type_welsh_labels) +
+  xlab("Flower context") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("More or less isolated", 
+                              "Growing in a larger patch of the same flower",
+                              "Growing in a larger patch of many different flowers"), 
+                   labels = c("Isolated", 
+                              "Large patch\n(same flower)", 
+                              "Large patch\n(many flowers)")) +
   theme_classic()
+
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverfly_flowerContext.png"), 
+    width = 80, height = 80, unit = "mm", res = 300)
+Flower_context
+dev.off()
+
+
+
+Wind <- hover_1km_wind + 
+  l_ciBar(colour = "darkgoldenrod", size = 1) +   
+  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+  l_rug(alpha = 0.3) +
+  xlab("Wind speed during count") +
+  ylab("Effect on hoverfly count") +
+  scale_x_discrete(breaks = c("Leaves still/moving occasionally", 
+                              "Leaves moving gently all the time",
+                              "Leaves moving strongly"), 
+                   labels = c("Leaves still", 
+                              "Leaves\nmoving\ngently", 
+                              "Leaves\nmoving\nstrongly")) +
+  theme_classic()
+
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_wind.png"), 
+    width = 80, height = 80, unit = "mm", res = 300)
+Wind
+dev.off()
+
 
 
 Sunshine <- hover_1km_sunshine + 
@@ -1601,26 +1638,26 @@ Sunshine <- hover_1km_sunshine +
                               "Shaded")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_hoverflies_sunshine.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_sunshine.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Sunshine
 dev.off()
 
 
-# welsh
-
-Sunshine_welsh <- hover_1km_sunshine + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Heulwen yn ystod y cyfrif") +
-  ylab("Effaith ar gyfrif pryfed hofran") +
-  scale_x_discrete(breaks = c("Entirely in sunshine", 
-                              "Entirely shaded",
-                              "Partly in sun and partly shaded"), 
-                   labels = c("Yn yr heulwen", "Yn y cysgod", "Rhannol")) +
-  theme_classic()
-
+# # welsh
+# 
+# Sunshine_welsh <- hover_1km_sunshine + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Heulwen yn ystod y cyfrif") +
+#   ylab("Effaith ar gyfrif pryfed hofran") +
+#   scale_x_discrete(breaks = c("Entirely in sunshine", 
+#                               "Entirely shaded",
+#                               "Partly in sun and partly shaded"), 
+#                    labels = c("Yn yr heulwen", "Yn y cysgod", "Rhannol")) +
+#   theme_classic()
+# 
 
 Habitat <- hover_1km_habitat + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
@@ -1628,30 +1665,30 @@ Habitat <- hover_1km_habitat +
   l_rug(alpha = 0.3) +
   xlab("Habitat type") +
   ylab("Effect on hoverfly count") +
-  scale_x_discrete(breaks = c("A", "N", "U"), 
-                   labels = c("Agricultural", 
-                              "Semi-natural", 
-                              "Urban")) +
+  # scale_x_discrete(breaks = c("A", "N", "U"), 
+  #                  labels = c("Agricultural", 
+  #                             "Semi-natural", 
+  #                             "Urban")) +
   theme_classic()
 
-png("./Plots/FIT_1Km_hoverflies_habitat.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_habitat.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Habitat
 dev.off()
 
 
-# welsh
-
-Habitat_welsh <- hover_1km_habitat + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Math o gynefin") +
-  ylab("Effaith ar gyfrif pryfed hofran") +
-  scale_x_discrete(breaks = c("A", "N", "U"), 
-                   labels = habitat_welsh_labels) +
-  theme_classic()
-
+# # welsh
+# 
+# Habitat_welsh <- hover_1km_habitat + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Math o gynefin") +
+#   ylab("Effaith ar gyfrif pryfed hofran") +
+#   scale_x_discrete(breaks = c("A", "N", "U"), 
+#                    labels = habitat_welsh_labels) +
+#   theme_classic()
+# 
 
 Year <- hover_1km_year + 
   l_ciBar(colour = "darkgoldenrod", size = 1) +   
@@ -1661,34 +1698,34 @@ Year <- hover_1km_year +
   ylab("Effect on hoverfly count") +
   theme_classic()
 
-png("./Plots/FIT_1Km_hoverflies_year.png", 
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_year.png"), 
     width = 80, height = 80, unit = "mm", res = 300)
 Year
 dev.off()
 
 
-# welsh
+# # welsh
+# 
+# Year_welsh <- hover_1km_year + 
+#   l_ciBar(colour = "darkgoldenrod", size = 1) +   
+#   l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
+#   l_rug(alpha = 0.3) +
+#   xlab("Blwyddyn") +
+#   ylab("Effaith ar gyfrif pryfed hofran") +
+#   theme_classic()
+# 
 
-Year_welsh <- hover_1km_year + 
-  l_ciBar(colour = "darkgoldenrod", size = 1) +   
-  l_fitPoints(colour = "darkgoldenrod2", size = 5) + 
-  l_rug(alpha = 0.3) +
-  xlab("Blwyddyn") +
-  ylab("Effaith ar gyfrif pryfed hofran") +
-  theme_classic()
-
-
-png("./Plots/FIT_1Km_hoverflies_parametric.png", 
-    width = 180, height = 180, unit = "mm", res = 300)
-gridPrint(Flower_class, Sunshine, 
-          Habitat, Year, ncol = 2, top = "")
+png(file.path(output_path, "FIT counts/FIT_1Km_hoverflies_parametric.png"), 
+    width = 160, height = 200, unit = "mm", res = 300)
+gridPrint(Flower_class, Flower_context, Wind, 
+          Sunshine, Habitat, Year, ncol = 2, top = "")
 dev.off()
 
 
-# welsh
-
-png("./Plots/FIT_1Km_hoverflies_parametric_welsh.png", 
-    width = 180, height = 180, unit = "mm", res = 300)
-gridPrint(Flower_class_welsh, Sunshine_welsh, 
-          Habitat_welsh, Year_welsh, ncol = 2, top = "")
-dev.off()
+# # welsh
+# 
+# png("./Plots/FIT_1Km_hoverflies_parametric_welsh.png", 
+#     width = 180, height = 180, unit = "mm", res = 300)
+# gridPrint(Flower_class_welsh, Sunshine_welsh, 
+#           Habitat_welsh, Year_welsh, ncol = 2, top = "")
+# dev.off()
